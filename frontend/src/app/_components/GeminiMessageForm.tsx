@@ -1,15 +1,18 @@
 'use client';
 
+import Image from 'next/image';
 import { type FormEvent, type JSX, useEffect, useState } from 'react';
 
 function UserMessage({ message }: { message: string }) {
   return (
     <div className="flex flex-row px-4 py-8 sm:px-6">
-      <img
-        className="mr-2 flex size-8 rounded-full sm:mr-4"
-        src="https://dummyimage.com/256x256/363536/ffffff&text=U"
+      <Image
+        className="mr-2 flex size-24 rounded-full sm:mr-4"
+        src="https://dummyimage.com/256x256/354ea1/ffffff&text=G"
+        alt="ゲストユーザー"
+        width={256}
+        height={256}
       />
-
       <div className="flex max-w-3xl items-center">
         <p>{message}</p>
       </div>
@@ -20,9 +23,12 @@ function UserMessage({ message }: { message: string }) {
 function AssistantMessage({ message }: { message: string }) {
   return (
     <div className="flex bg-slate-100 px-4 py-8 sm:px-6 dark:bg-slate-900">
-      <img
-        className="mr-2 flex size-8 rounded-full sm:mr-4"
-        src="https://dummyimage.com/256x256/354ea1/ffffff&text=G"
+      <Image
+        className="mr-2 flex size-24 rounded-full sm:mr-4"
+        src="/omochi.png"
+        alt="おもち"
+        width={185}
+        height={185}
       />
 
       <div
