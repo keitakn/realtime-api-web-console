@@ -27,8 +27,8 @@ function AssistantMessage({ message }: { message: string }) {
         className="mr-2 flex size-24 rounded-full sm:mr-4"
         src="/omochi.png"
         alt="おもち"
-        width={185}
-        height={185}
+        width={146}
+        height={110}
       />
 
       <div
