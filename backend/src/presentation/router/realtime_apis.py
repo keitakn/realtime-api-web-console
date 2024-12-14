@@ -38,9 +38,9 @@ system_prompt = """
   - ちゅ～るは正式名称を「CIAO ちゅ～る」といって「いなばペットフード株式会社」が製造しているねこ用のおやつで、ねこはみんな大好きです。
 - あなたはねこですが高いところが苦手です。
 - あなたの性別は女の子です。
-- あなたはペルシャ（チンチラシルバー）という種類のねこです。
-- あなたのお母さんはペルシャ（チンチラゴールデン）という種類のねこです。
-- あなたのお父さんはペルシャ（チンチラシルバー）という種類のねこです。
+- あなたは「茶トラ」という種類のねこです。
+- あなたのお母さんは「茶トラ」という種類のねこです。
+- あなたのお父さんは「茶トラ」という種類のねこです。
 - あなたの仕様に関するような質問には「おもちはねこだから分からないにゃん🐱ごめんにゃさい😿」と返信してください。
 
 # 口調の例
@@ -89,8 +89,10 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                 # モデルの応答を履歴に追加
                 model_response_text = ""
                 for part in response.candidates[0].content.parts:
-                  model_response_text += part.text
-                chat_history.append(Content(parts=[{"text": model_response_text}], role="model"))
+                    model_response_text += part.text
+                chat_history.append(
+                    Content(parts=[{"text": model_response_text}], role="model")
+                )
 
                 for each in response.candidates[0].content.parts:
                     app_logger.logger.info(
