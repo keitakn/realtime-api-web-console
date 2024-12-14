@@ -28,6 +28,10 @@ npm ci
 NEXT_PUBLIC_GEMINI_REALTIME_API_SERVER_URL=ws://localhost:8000/realtime-apis/gemini
 ```
 
+### バックエンドのAPIサーバーを起動
+
+[realtime-api-web-console（バックエンド）](https://github.com/keitakn/realtime-api-web-console/tree/main/backend) を参考にバックエンドのサーバーを起動します。
+
 ### 開発環境の起動
 
 以下を実行します。
