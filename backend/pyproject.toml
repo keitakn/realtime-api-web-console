@@ -1,0 +1,37 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "AIとのリアルタイムなやり取りを行う為の実験用リポジトリのバックエンド側の実装です。"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.6",
+    "google-genai>=0.2.2",
+    "uvicorn>=0.32.1",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13.0",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.0",
+    "pytest-env>=1.1.5",
+    "pytest-xdist>=3.6.1",
+    "ruff>=0.8.3",
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["fastapi", "pydantic", "starlette"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+env = [
+    "IS_TESTING=1",
+]
+addopts = "-n auto"
+
+[tool.mypy]
+files = "src/"
+python_version = "3.13"
+ignore_missing_imports = true

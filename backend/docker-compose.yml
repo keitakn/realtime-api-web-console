@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  realtime-api-web-console-backend:
+    build:
+      context: .
+    ports:
+      - "5555:5000"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - ./Makefile:/Makefile
+      - ./pyproject.toml:/pyproject.toml
+      - ./requirements.lock:/requirements.lock
+      - ./requirements-dev.lock:/requirements-dev.lock
+      - ./src:/src
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 5000
