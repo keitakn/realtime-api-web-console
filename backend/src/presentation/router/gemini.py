@@ -8,7 +8,8 @@ client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY"), http_options={"api_version": "v1alpha"}
 )
 model_id = "gemini-2.0-flash-exp"
-config = {"response_modalities": ["TEXT"]}
+search_tool = {"google_search": {}}
+config = {"response_modalities": ["TEXT"], "tools": [search_tool]}
 
 # TTS API の設定
 TTS_API_URL = "https://api.nijivoice.com/api/platform/v1/voice-actors/16e979a8-cd0f-49d4-a4c4-7a25aa42e184/generate-voice"
@@ -40,28 +41,28 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                             json.dumps({"type": "text", "data": response.text})
                         )
                 if combined_text:
-                   tts_payload = {
+                    tts_payload = {
                         "script": combined_text,
                         "format": "wav",
                         "speed": "0.8",
                     }
-                   tts_headers = {
+                    tts_headers = {
                         "x-api-key": TTS_API_KEY,
                         "accept": "application/json",
                         "content-type": "application/json",
                     }
-                   tts_response = requests.post(
+                    tts_response = requests.post(
                         TTS_API_URL, json=tts_payload, headers=tts_headers
                     )
-                   tts_response.raise_for_status()
-                   tts_data = tts_response.json()
-                   if (
+                    tts_response.raise_for_status()
+                    tts_data = tts_response.json()
+                    if (
                         "generatedVoice" in tts_data
                         and "audioFileUrl" in tts_data["generatedVoice"]
                     ):
                         audio_url = tts_data["generatedVoice"]["audioFileUrl"]
                         await websocket.send_text(
-                             json.dumps({"type": "audio", "data": audio_url})
+                            json.dumps({"type": "audio", "data": audio_url})
                         )
                 await websocket.send_text(json.dumps({"type": "end"}))
 
