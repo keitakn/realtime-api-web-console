@@ -1,8 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { type FormEvent, type JSX, useEffect, useState } from 'react';
-import z from 'zod';
+import { type FormEvent, type JSX, useEffect, useRef, useState } from 'react';
 
 function UserMessage({ message }: { message: string }) {
   return (
@@ -45,22 +44,39 @@ function AssistantMessage({ message }: { message: string }) {
   );
 }
 
-const generateVoiceResponseSchema = z.object({
-  generatedAudioFileUrl: z.string().url(),
-});
-
-type GenerateVoiceResponse = z.infer<typeof generateVoiceResponseSchema>;
-
-function isGenerateVoiceResponseBody(value: unknown): value is GenerateVoiceResponse {
-  const result = generateVoiceResponseSchema.safeParse(value);
-
-  return result.success;
-}
-
 export function GeminiMessageForm(): JSX.Element {
   const [messages, setMessages] = useState<Array<{ type: 'user' | 'assistant'; content: string }>>([]);
   const [input, setInput] = useState<string>('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const audioUrl = useRef<string | null>(null);
+  const currentAudio = useRef<HTMLAudioElement | null>(null);
+
+  const playAudio = async () => {
+    console.log('playAudio関数が呼ばれました');
+    if (!audioUrl.current) {
+      console.log('audioUrlが空のため再生をスキップします');
+      return;
+    }
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current = null;
+    }
+
+    const audio = new Audio(audioUrl.current);
+    console.log('Audioオブジェクトを作成しました:', audio);
+    currentAudio.current = audio;
+    audio.addEventListener('ended', () => {
+      console.log('音声再生が終了しました');
+      currentAudio.current = null;
+    });
+    try {
+      console.log('audio.play()を実行します:', audio);
+      await audio.play();
+    }
+    catch (error) {
+      console.error('音声再生エラー', error);
+    }
+  };
 
   useEffect(() => {
     // WebSocketサーバーへの接続を確立
@@ -69,29 +85,23 @@ export function GeminiMessageForm(): JSX.Element {
 
     // サーバーからのメッセージを受信
     ws.onmessage = async (event) => {
-      setMessages(prevMessages => [...prevMessages, { type: 'assistant', content: event.data }]);
-
-      const generatedVoiceResponse = await fetch(
-        '/api/voices',
-        {
-          method: 'POST',
-          headers: { 'accept': 'application/json', 'content-type': 'application/json' },
-          body: JSON.stringify({ script: event.data }),
-        },
-      );
-
-      const generatedVoiceResponseBody = await generatedVoiceResponse.json();
-
-      const parsedGeneratedVoiceResponseBody = typeof generatedVoiceResponseBody === 'string'
-        ? JSON.parse(generatedVoiceResponseBody)
-        : generatedVoiceResponseBody;
-
-      if (isGenerateVoiceResponseBody(parsedGeneratedVoiceResponseBody)) {
-        const audio = new Audio(parsedGeneratedVoiceResponseBody.generatedAudioFileUrl);
-
-        audio.play().catch((error) => {
-          console.error('音声の再生に失敗しました:', error);
-        });
+      console.log('受信したイベントデータ:', event.data);
+      try {
+        const message = JSON.parse(event.data);
+        console.log('JSON.parseの結果:', message);
+        console.log('メッセージタイプ:', message.type);
+        if (message.type === 'text') {
+          setMessages(prevMessages => [...prevMessages, { type: 'assistant', content: message.data }]);
+        }
+        else if (message.type === 'audio') {
+          console.log('audioUrlを設定:', message.data);
+          audioUrl.current = message.data;
+          playAudio();
+        }
+      }
+      catch (e) {
+        console.error('JSONのパースに失敗', e);
+        setMessages(prevMessages => [...prevMessages, { type: 'assistant', content: event.data }]);
       }
     };
 
@@ -103,7 +113,11 @@ export function GeminiMessageForm(): JSX.Element {
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current = null;
+    }
+    audioUrl.current = null;
     if (socket && input) {
       socket.send(input);
       setMessages(prevMessages => [...prevMessages, { type: 'user', content: input }]);
