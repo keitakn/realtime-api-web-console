@@ -81,8 +81,17 @@ export function GeminiMessageForm(): JSX.Element {
       );
 
       const generatedVoiceResponseBody = await generatedVoiceResponse.json();
-      if (isGenerateVoiceResponseBody(generatedVoiceResponseBody)) {
-        console.log(generatedVoiceResponseBody.generatedAudioFileUrl);
+
+      const parsedGeneratedVoiceResponseBody = typeof generatedVoiceResponseBody === 'string'
+        ? JSON.parse(generatedVoiceResponseBody)
+        : generatedVoiceResponseBody;
+
+      if (isGenerateVoiceResponseBody(parsedGeneratedVoiceResponseBody)) {
+        const audio = new Audio(parsedGeneratedVoiceResponseBody.generatedAudioFileUrl);
+
+        audio.play().catch((error) => {
+          console.error('音声の再生に失敗しました:', error);
+        });
       }
     };
 
