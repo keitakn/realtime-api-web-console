@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from presentation.router import realtime_apis
+from presentation.router import realtime_apis, gemini
 
 app = FastAPI(
     title="realtime-api-web-console-backend",
@@ -63,7 +63,8 @@ async def validation_exception_handler(
     )
 
 
-app.include_router(realtime_apis.router)
+# app.include_router(realtime_apis.router)
+app.include_router(gemini.router)
 
 
 def start() -> None:
