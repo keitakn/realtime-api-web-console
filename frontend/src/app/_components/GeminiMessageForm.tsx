@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { type FormEvent, type JSX, useEffect, useState } from 'react';
+import z from 'zod';
 
 function UserMessage({ message }: { message: string }) {
   return (
@@ -44,6 +45,18 @@ function AssistantMessage({ message }: { message: string }) {
   );
 }
 
+const generateVoiceResponseSchema = z.object({
+  generatedAudioFileUrl: z.string().url(),
+});
+
+type GenerateVoiceResponse = z.infer<typeof generateVoiceResponseSchema>;
+
+function isGenerateVoiceResponseBody(value: unknown): value is GenerateVoiceResponse {
+  const result = generateVoiceResponseSchema.safeParse(value);
+
+  return result.success;
+}
+
 export function GeminiMessageForm(): JSX.Element {
   const [messages, setMessages] = useState<Array<{ type: 'user' | 'assistant'; content: string }>>([]);
   const [input, setInput] = useState<string>('');
@@ -55,8 +68,22 @@ export function GeminiMessageForm(): JSX.Element {
     setSocket(ws);
 
     // サーバーからのメッセージを受信
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
       setMessages(prevMessages => [...prevMessages, { type: 'assistant', content: event.data }]);
+
+      const generatedVoiceResponse = await fetch(
+        '/api/voices',
+        {
+          method: 'POST',
+          headers: { 'accept': 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify({ script: event.data }),
+        },
+      );
+
+      const generatedVoiceResponseBody = await generatedVoiceResponse.json();
+      if (isGenerateVoiceResponseBody(generatedVoiceResponseBody)) {
+        console.log(generatedVoiceResponseBody.generatedAudioFileUrl);
+      }
     };
 
     // クリーンアップ関数
