@@ -50,6 +50,7 @@ export function GeminiMessageForm(): JSX.Element {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const audioUrl = useRef<string | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
+  const [currentAssistantMessageIndex, setCurrentAssistantMessageIndex] = useState(-1);
 
   const playAudio = async () => {
     console.log('playAudio関数が呼ばれました');
@@ -69,6 +70,7 @@ export function GeminiMessageForm(): JSX.Element {
       console.log('音声再生が終了しました');
       currentAudio.current = null;
     });
+
     try {
       console.log('audio.play()を実行します:', audio);
       await audio.play();
@@ -91,7 +93,17 @@ export function GeminiMessageForm(): JSX.Element {
         console.log('JSON.parseの結果:', message);
         console.log('メッセージタイプ:', message.type);
         if (message.type === 'text') {
-          setMessages(prevMessages => [...prevMessages, { type: 'assistant', content: message.data }]);
+          setMessages((prevMessages) => {
+            const lastMessage = prevMessages[prevMessages.length - 1];
+            if (lastMessage?.type === 'assistant') {
+              const updatedMessages = [...prevMessages];
+              updatedMessages[prevMessages.length - 1] = { ...lastMessage, content: lastMessage.content + message.data };
+              return updatedMessages;
+            }
+            else {
+              return [...prevMessages, { type: 'assistant', content: message.data }];
+            }
+          });
         }
         else if (message.type === 'audio') {
           console.log('audioUrlを設定:', message.data);
@@ -111,6 +123,12 @@ export function GeminiMessageForm(): JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    if (audioUrl.current) {
+      playAudio();
+    }
+  }, [audioUrl.current]);
+
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (currentAudio.current) {
@@ -118,6 +136,7 @@ export function GeminiMessageForm(): JSX.Element {
       currentAudio.current = null;
     }
     audioUrl.current = null;
+    setCurrentAssistantMessageIndex(-1);
     if (socket && input) {
       socket.send(input);
       setMessages(prevMessages => [...prevMessages, { type: 'user', content: input }]);

@@ -63,6 +63,7 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                         await websocket.send_text(
                              json.dumps({"type": "audio", "data": audio_url})
                         )
+                await websocket.send_text(json.dumps({"type": "end"}))
 
     except WebSocketDisconnect:
         print("接続解除")
