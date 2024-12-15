@@ -62,15 +62,14 @@ export function GeminiMessageForm(): JSX.Element {
       currentAudio.current.pause();
       currentAudio.current = null;
     }
-
     const audio = new Audio(audioUrl.current);
     console.log('Audioオブジェクトを作成しました:', audio);
     currentAudio.current = audio;
     audio.addEventListener('ended', () => {
       console.log('音声再生が終了しました');
       currentAudio.current = null;
+      audioUrl.current = null;
     });
-
     try {
       console.log('audio.play()を実行します:', audio);
       await audio.play();
@@ -122,12 +121,6 @@ export function GeminiMessageForm(): JSX.Element {
       ws.close();
     };
   }, []);
-
-  useEffect(() => {
-    if (audioUrl.current) {
-      playAudio();
-    }
-  }, [audioUrl.current]);
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
