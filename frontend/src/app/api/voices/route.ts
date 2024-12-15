@@ -86,8 +86,6 @@ export async function POST(request: Request) {
 
   const responseBody = await response.json();
   if (isNijivoiceGenerateVoiceResponseBody(responseBody)) {
-    console.log(responseBody);
-
     return Response.json(JSON.stringify({ generatedAudioFileUrl: responseBody.generatedVoice.audioFileUrl }), { status: 201 });
   }
 
