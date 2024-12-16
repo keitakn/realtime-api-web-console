@@ -1,52 +1,50 @@
 import os
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
-from google.genai.types import Tool, FunctionDeclaration
+from google.genai.live import AsyncSession
 import json
 import requests
 from typing import List, TypedDict, Protocol
+
 
 class SendEmailDto(TypedDict):
     to_email: str
     subject: str
     body: str
 
+
 class SendEmailResult(TypedDict):
     result: bool
+
 
 # メール送信用の関数（ダミー）
 async def send_email(dto: SendEmailDto) -> SendEmailResult:
     # Tools検証用のダミーの関数なので常にTrueを返す
     return SendEmailResult(result=True)
 
+
 # 関数のスキーマを定義
 send_email_schema = {
-    'name': 'send_email',
-    'description': 'メールアドレスにメールを送信する関数',
-    'parameters': {
-        'type': 'object',
-        'properties': {
-            'dto': {
-                'type': 'object',
-                'description': '送信するメールの詳細',
-                'properties': {
-                    'to_email': {
-                        'type': 'string',
-                        'description': '送信先のメールアドレス'
+    "name": "send_email",
+    "description": "メールアドレスにメールを送信する関数",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "dto": {
+                "type": "object",
+                "description": "送信するメールの詳細",
+                "properties": {
+                    "to_email": {
+                        "type": "string",
+                        "description": "送信先のメールアドレス",
                     },
-                    'subject': {
-                        'type': 'string',
-                        'description': 'メールの件名'
-                    },
-                    'body': {
-                        'type': 'string',
-                        'description': 'メールの本文'
-                    }
+                    "subject": {"type": "string", "description": "メールの件名"},
+                    "body": {"type": "string", "description": "メールの本文"},
                 },
-                'required': ['to_email', 'subject', 'body']
+                "required": ["to_email", "subject", "body"],
             }
         },
-        'required': ['dto']
+        "required": ["dto"],
     },
 }
 
@@ -98,8 +96,8 @@ model_id = "gemini-2.0-flash-exp"
 # search_tool = {"google_search": {}}
 
 tools = [
-    {'google_search': {}},
-    {'function_declarations': [send_email_schema]},
+    {"google_search": {}},
+    {"function_declarations": [send_email_schema]},
 ]
 
 config = {
@@ -121,10 +119,10 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
 
     try:
         # セッションを一度だけ作成し、会話全体で維持
-        async with client.aio.live.connect(model=model_id, config=config) as session :
+        async with client.aio.live.connect(model=model_id, config=config) as session:  # type: AsyncSession
             while True:
                 data = await websocket.receive_text()
-                print("> ", data, "\n")
+                # print("> ", data, "\n")
 
                 # メッセージを送信
                 await session.send(data, end_of_turn=True)
@@ -132,11 +130,30 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                 combined_text = ""
                 async for response in session.receive():
                     if response.text is not None:
-                        print(response.text)
+                        # print(response.text)
                         combined_text += response.text
                         await websocket.send_text(
                             json.dumps({"type": "text", "data": response.text})
                         )
+
+                    # 関数呼び出しの処理
+                    if response.tool_call and response.tool_call.function_calls:
+                        for function_call in response.tool_call.function_calls:
+                            if function_call.name == "send_email":
+                                # 関数を実行
+                                result = await send_email(
+                                    SendEmailDto(**function_call.args["dto"])
+                                )
+
+                                # 結果をモデルに送信
+                                await session.send(
+                                    {
+                                        "id": function_call.id,
+                                        "name": "send_email",
+                                        "response": result,
+                                    },
+                                    end_of_turn=True,
+                                )
 
                 if combined_text:
                     tts_payload = {
