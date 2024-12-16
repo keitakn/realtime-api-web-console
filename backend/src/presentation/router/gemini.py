@@ -4,7 +4,7 @@ import requests
 from typing import TypedDict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
-from google.genai.live import AsyncSession
+from google.genai.live import AsyncSession  # noqa: F401
 from log.logger import AppLogger
 
 
