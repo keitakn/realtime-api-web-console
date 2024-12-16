@@ -65,23 +65,24 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     try:
-        while True:
-            data = await websocket.receive_text()
-
-            async with client.aio.live.connect(
-                model=model_id, config=config
-            ) as session:
+        # セッションを一度だけ作成し、会話全体で維持
+        async with client.aio.live.connect(model=model_id, config=config) as session:
+            while True:
+                data = await websocket.receive_text()
                 print("> ", data, "\n")
+
+                # メッセージを送信
                 await session.send(data, end_of_turn=True)
 
                 combined_text = ""
                 async for response in session.receive():
-                    if response.text != None:
+                    if response.text is not None:
                         print(response.text)
                         combined_text += response.text
                         await websocket.send_text(
                             json.dumps({"type": "text", "data": response.text})
                         )
+
                 if combined_text:
                     tts_payload = {
                         "script": combined_text,
