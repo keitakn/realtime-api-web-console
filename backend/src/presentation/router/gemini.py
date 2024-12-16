@@ -1,10 +1,11 @@
 import os
+import json
+import requests
+from typing import TypedDict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai.live import AsyncSession
-import json
-import requests
-from typing import List, TypedDict, Protocol
+from log.logger import AppLogger
 
 
 class SendEmailDto(TypedDict):
@@ -93,7 +94,6 @@ client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY"), http_options={"api_version": "v1alpha"}
 )
 model_id = "gemini-2.0-flash-exp"
-# search_tool = {"google_search": {}}
 
 tools = [
     {"google_search": {}},
@@ -106,11 +106,12 @@ config = {
     "system_instruction": system_prompt,
 }
 
-# TTS API の設定
 TTS_API_URL = "https://api.nijivoice.com/api/platform/v1/voice-actors/16e979a8-cd0f-49d4-a4c4-7a25aa42e184/generate-voice"
 TTS_API_KEY = os.getenv("NIJIVOICE_API_KEY")
 
 router = APIRouter()
+
+app_logger = AppLogger()
 
 
 @router.websocket("/realtime-apis/gemini")
@@ -121,16 +122,14 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
         # セッションを一度だけ作成し、会話全体で維持
         async with client.aio.live.connect(model=model_id, config=config) as session:  # type: AsyncSession
             while True:
-                data = await websocket.receive_text()
-                # print("> ", data, "\n")
+                user_text = await websocket.receive_text()
 
                 # メッセージを送信
-                await session.send(data, end_of_turn=True)
+                await session.send(user_text, end_of_turn=True)
 
                 combined_text = ""
                 async for response in session.receive():
                     if response.text is not None:
-                        # print(response.text)
                         combined_text += response.text
                         await websocket.send_text(
                             json.dumps({"type": "text", "data": response.text})
@@ -145,7 +144,12 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                                     SendEmailDto(**function_call.args["dto"])
                                 )
 
-                                # 結果をモデルに送信
+                                app_logger.logger.info(
+                                    f"Function call ID is {function_call.id} Call Functions is 'send_email' result is {result}."
+                                )
+
+                                # `function_call.id` は function-call-xxxxxxxxxxxxxxxxxxxx のような値が返ってくる
+                                # 関数の結果をモデルに送信
                                 await session.send(
                                     {
                                         "id": function_call.id,
@@ -154,6 +158,16 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                                     },
                                     end_of_turn=True,
                                 )
+
+                    # キャンセル処理の追加
+                    if response.tool_call_cancellation:
+                        for cancelled_id in response.tool_call_cancellation.ids:
+                            # 必要に応じてキャンセル処理を実行
+                            # function_call.id と関数の呼び出し結果をDBに保存しておいて、やるとしたら取り消し処理を行う等になると思う
+                            # 若干ややこしいので、取り消し用の関数をToolsに設定しておくほうが簡単かもしれない
+                            app_logger.logger.info(
+                                f"Function call with ID {cancelled_id} was cancelled."
+                            )
 
                 if combined_text:
                     tts_payload = {
