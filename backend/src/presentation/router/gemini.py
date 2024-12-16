@@ -1,8 +1,54 @@
 import os
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
+from google.genai.types import Tool, FunctionDeclaration
 import json
 import requests
+from typing import List, TypedDict, Protocol
+
+class SendEmailDto(TypedDict):
+    to_email: str
+    subject: str
+    body: str
+
+class SendEmailResult(TypedDict):
+    result: bool
+
+# メール送信用の関数（ダミー）
+async def send_email(dto: SendEmailDto) -> SendEmailResult:
+    # Tools検証用のダミーの関数なので常にTrueを返す
+    return SendEmailResult(result=True)
+
+# 関数のスキーマを定義
+send_email_schema = {
+    'name': 'send_email',
+    'description': 'メールアドレスにメールを送信する関数',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'dto': {
+                'type': 'object',
+                'description': '送信するメールの詳細',
+                'properties': {
+                    'to_email': {
+                        'type': 'string',
+                        'description': '送信先のメールアドレス'
+                    },
+                    'subject': {
+                        'type': 'string',
+                        'description': 'メールの件名'
+                    },
+                    'body': {
+                        'type': 'string',
+                        'description': 'メールの本文'
+                    }
+                },
+                'required': ['to_email', 'subject', 'body']
+            }
+        },
+        'required': ['dto']
+    },
+}
 
 # システムプロンプト
 system_prompt = """
@@ -40,16 +86,25 @@ system_prompt = """
 - ユーザーに対してはちゃんをつけて呼んでください。
 - ユーザーの名前が分からない時は「ユーザーちゃん」と呼んでください。
 - ユーザーから名前を教えてもらったらユーザーから教えてもらった名前で呼んであげてください。
+
+# 便利な関数について
+- ユーザーにメールを送信する必要がある場合は send_email を利用可能です。ユーザーからメールアドレスを聞いてから利用してください。
 """
 
 client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY"), http_options={"api_version": "v1alpha"}
 )
 model_id = "gemini-2.0-flash-exp"
-search_tool = {"google_search": {}}
+# search_tool = {"google_search": {}}
+
+tools = [
+    {'google_search': {}},
+    {'function_declarations': [send_email_schema]},
+]
+
 config = {
     "response_modalities": ["TEXT"],
-    "tools": [search_tool],
+    "tools": tools,
     "system_instruction": system_prompt,
 }
 
@@ -66,7 +121,7 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
 
     try:
         # セッションを一度だけ作成し、会話全体で維持
-        async with client.aio.live.connect(model=model_id, config=config) as session:
+        async with client.aio.live.connect(model=model_id, config=config) as session :
             while True:
                 data = await websocket.receive_text()
                 print("> ", data, "\n")
