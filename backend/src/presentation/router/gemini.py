@@ -24,6 +24,22 @@ async def send_email(dto: SendEmailDto) -> SendEmailResult:
     return SendEmailResult(result=True)
 
 
+class CreateGoogleCalendarEventDto(TypedDict):
+    email: str
+    title: str
+
+
+class CreateGoogleCalendarEventResult(TypedDict):
+    result: bool
+
+
+async def create_google_calendar_event(
+    dto: CreateGoogleCalendarEventDto,
+) -> CreateGoogleCalendarEventResult:
+    # Tools検証用のダミーの関数なので常にTrueを返す
+    return CreateGoogleCalendarEventResult(result=True)
+
+
 # 関数のスキーマを定義
 send_email_schema = {
     "name": "send_email",
@@ -43,6 +59,32 @@ send_email_schema = {
                     "body": {"type": "string", "description": "メールの本文"},
                 },
                 "required": ["to_email", "subject", "body"],
+            }
+        },
+        "required": ["dto"],
+    },
+}
+
+create_google_calendar_event_schema = {
+    "name": "create_google_calendar_event",
+    "description": "Googleカレンダーに予定を登録する関数",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "dto": {
+                "type": "object",
+                "description": "Googleカレンダーに登録する予定の詳細",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "Googleカレンダーの持ち主のメールアドレスを指定する",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "登録する予定のタイトル",
+                    },
+                },
+                "required": ["email", "title"],
             }
         },
         "required": ["dto"],
@@ -88,6 +130,7 @@ system_prompt = """
 
 # 便利な関数について
 - ユーザーにメールを送信する必要がある場合は send_email を利用可能です。ユーザーからメールアドレスを聞いてから利用してください。
+- ユーザーのGoogleカレンダーに予定を登録する場合は create_google_calendar_event_schema を利用可能です。ユーザーからメールアドレスを聞いてから利用してください。
 """
 
 client = genai.Client(
@@ -97,7 +140,7 @@ model_id = "gemini-2.0-flash-exp"
 
 tools = [
     {"google_search": {}},
-    {"function_declarations": [send_email_schema]},
+    {"function_declarations": [send_email_schema, create_google_calendar_event_schema]},
 ]
 
 config = {
@@ -154,6 +197,27 @@ async def gemini_websocket_endpoint(websocket: WebSocket):
                                     {
                                         "id": function_call.id,
                                         "name": "send_email",
+                                        "response": result,
+                                    },
+                                    end_of_turn=True,
+                                )
+
+                            if function_call.name == "create_google_calendar_event":
+                                # 関数を実行
+                                result = await create_google_calendar_event(
+                                    CreateGoogleCalendarEventDto(
+                                        **function_call.args["dto"]
+                                    )
+                                )
+
+                                app_logger.logger.info(
+                                    f"Function call ID is {function_call.id} Call Functions is 'create_google_calendar_event' result is {result}."
+                                )
+
+                                await session.send(
+                                    {
+                                        "id": function_call.id,
+                                        "name": "create_google_calendar_event",
                                         "response": result,
                                     },
                                     end_of_turn=True,
