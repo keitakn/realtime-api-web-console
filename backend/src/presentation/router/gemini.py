@@ -158,7 +158,7 @@ app_logger = AppLogger()
 
 
 @router.websocket("/realtime-apis/gemini")
-async def gemini_websocket_endpoint(websocket: WebSocket):
+async def gemini_websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
 
     try:
