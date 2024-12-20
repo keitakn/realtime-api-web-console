@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { type FormEvent, type JSX, useEffect, useRef, useState } from 'react';
+import { type FormEvent, type JSX, type ReactEventHandler, type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 function UserMessage({ message }: { message: string }) {
   return (
@@ -46,7 +46,7 @@ function AssistantMessage({ message }: { message: string }) {
 
 export function GeminiMessageForm(): JSX.Element {
   const [messages, setMessages] = useState<Array<{ type: 'user' | 'assistant'; content: string }>>([]);
-  const [input, setInput] = useState<string>('');
+  const [inputText, setInputText] = useState<string>('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const audioUrl = useRef<string | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
@@ -130,11 +130,28 @@ export function GeminiMessageForm(): JSX.Element {
     }
     audioUrl.current = null;
     setCurrentAssistantMessageIndex(-1);
-    if (socket && input) {
-      socket.send(input);
-      setMessages(prevMessages => [...prevMessages, { type: 'user', content: input }]);
-      setInput('');
+    if (socket && inputText) {
+      socket.send(inputText);
+      setMessages(prevMessages => [...prevMessages, { type: 'user', content: inputText }]);
+      setInputText('');
     }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      const submitEvent = new Event('submit', {
+        bubbles: true,
+        cancelable: true,
+      });
+      event.currentTarget.form?.dispatchEvent(submitEvent);
+      event.preventDefault();
+    }
+  };
+
+  const handleChangeTextarea: ReactEventHandler<HTMLTextAreaElement> = (
+    event: ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    setInputText(event.target.value);
   };
 
   return (
@@ -182,7 +199,9 @@ export function GeminiMessageForm(): JSX.Element {
             id="chat-input"
             className="block w-full resize-none rounded-xl border-none bg-slate-200 p-4 pl-10 pr-20 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 sm:text-base dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-400 dark:focus:ring-blue-600"
             placeholder="Enter your prompt"
-            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onChange={handleChangeTextarea}
+            value={inputText}
             rows={1}
             required
           >
