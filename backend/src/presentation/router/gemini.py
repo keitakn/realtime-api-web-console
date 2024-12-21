@@ -140,6 +140,7 @@ model_id = "gemini-2.0-flash-exp"
 
 tools = [
     {"google_search": {}},
+    {"code_execution": {}},
     {"function_declarations": [send_email_schema, create_google_calendar_event_schema]},
 ]
 
