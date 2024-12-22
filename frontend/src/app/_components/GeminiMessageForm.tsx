@@ -3,81 +3,6 @@
 import Image from 'next/image';
 import { type ChangeEvent, type FormEvent, type JSX, type KeyboardEvent, type ReactEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 
-class LiveAudioInputManager {
-  private audioContext: AudioContext | null = null;
-  private processor: ScriptProcessorNode | null = null;
-  private stream: MediaStream | null = null;
-  private pcmData: number[] = [];
-  private interval: NodeJS.Timeout | null = null;
-
-  constructor(private onNewAudioRecordingChunk: (audioData: string) => void) {}
-
-  async connectMicrophone() {
-    this.audioContext = new AudioContext({
-      sampleRate: 16000,
-    });
-
-    const constraints = {
-      audio: {
-        channelCount: 1,
-        sampleRate: 16000,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    };
-
-    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-    const source = this.audioContext.createMediaStreamSource(this.stream);
-    this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-    this.processor.onaudioprocess = (e) => {
-      const inputData = e.inputBuffer.getChannelData(0);
-      // Convert float32 to int16
-      const pcm16 = new Int16Array(inputData.length);
-      for (let i = 0; i < inputData.length; i++) {
-        pcm16[i] = inputData[i] * 0x7FFF;
-      }
-      this.pcmData.push(...pcm16);
-    };
-
-    source.connect(this.processor);
-    this.processor.connect(this.audioContext.destination);
-
-    this.interval = setInterval(this.recordChunk.bind(this), 1000);
-  }
-
-  private recordChunk() {
-    const buffer = new ArrayBuffer(this.pcmData.length * 2);
-    const view = new DataView(buffer);
-    this.pcmData.forEach((value, index) => {
-      view.setInt16(index * 2, value, true);
-    });
-
-    const base64 = btoa(
-      String.fromCharCode.apply(null, new Uint8Array(buffer)),
-    );
-    this.onNewAudioRecordingChunk(base64);
-    this.pcmData = [];
-  }
-
-  disconnectMicrophone() {
-    try {
-      this.processor?.disconnect();
-      this.audioContext?.close();
-      this.stream?.getTracks().forEach(track => track.stop());
-    }
-    catch (error) {
-      console.error('Error disconnecting microphone', error);
-    }
-
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
-    }
-  }
-}
-
 function UserMessage({ message }: { message: string }) {
   return (
     <div className="flex flex-row px-4 py-8 sm:px-6">
@@ -114,8 +39,6 @@ function AssistantMessage({ message }: { message: string }) {
 }
 
 export function GeminiMessageForm(): JSX.Element {
-  const [isRecording, setIsRecording] = useState(false);
-  const audioManagerRef = useRef<LiveAudioInputManager | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<Array<{ type: 'user' | 'assistant'; content: string }>>([]);
   const [inputText, setInputText] = useState<string>('');
@@ -124,7 +47,6 @@ export function GeminiMessageForm(): JSX.Element {
 
   const playAudio = async () => {
     if (!audioUrl.current) {
-      console.log('audioUrlが空のため再生をスキップします');
       return;
     }
     if (currentAudio.current) {
@@ -142,57 +64,6 @@ export function GeminiMessageForm(): JSX.Element {
     }
     catch (error) {
       console.error('音声再生エラー', error);
-    }
-  };
-
-  const startRecording = useCallback(async () => {
-    try {
-      console.log('Starting recording...');
-
-      if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket is not connected');
-        return;
-      }
-
-      if (!audioManagerRef.current) {
-        console.log('Creating new LiveAudioInputManager');
-        audioManagerRef.current = new LiveAudioInputManager((audioData) => {
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              realtimeInput: {
-                mediaChunks: [{
-                  mimeType: 'audio/pcm;rate=16000',
-                  data: audioData,
-                }],
-              },
-            }));
-          }
-        });
-      }
-
-      await audioManagerRef.current.connectMicrophone();
-      console.log('Microphone connected successfully');
-      setIsRecording(true);
-    }
-    catch (error) {
-      console.error('Recording start failed:', error);
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    if (audioManagerRef.current) {
-      audioManagerRef.current.disconnectMicrophone();
-      audioManagerRef.current = null;
-      setIsRecording(false);
-    }
-  }, []);
-
-  const handleMicClick = () => {
-    if (isRecording) {
-      stopRecording();
-    }
-    else {
-      startRecording();
     }
   };
 
@@ -274,10 +145,7 @@ export function GeminiMessageForm(): JSX.Element {
         <div className="relative">
           <button
             type="button"
-            onClick={handleMicClick}
-            className={`absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-600 ${
-              isRecording ? 'text-red-500 hover:text-red-600' : ''
-            }`}
+            className={`absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-600`}
           >
             <svg
               aria-hidden="true"
@@ -286,7 +154,7 @@ export function GeminiMessageForm(): JSX.Element {
               xmlns="http://www.w3.org/2000/svg"
               strokeWidth="2"
               stroke="currentColor"
-              fill={isRecording ? 'currentColor' : 'none'}
+              fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -297,7 +165,7 @@ export function GeminiMessageForm(): JSX.Element {
               <path d="M12 17l0 4"></path>
             </svg>
             <span className="sr-only">
-              {isRecording ? 'Stop voice input' : 'Use voice input'}
+              Use voice input
             </span>
           </button>
           <textarea
