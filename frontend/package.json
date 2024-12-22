@@ -12,6 +12,7 @@
     "format": "npm run fix:eslint"
   },
   "dependencies": {
+    "eventemitter3": "5.0.1",
     "next": "15.1.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",

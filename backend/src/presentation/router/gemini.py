@@ -168,6 +168,8 @@ async def gemini_websocket_endpoint(websocket: WebSocket) -> None:
             while True:
                 user_message = await websocket.receive_text()
 
+                print(user_message)
+
                 try:
                     message_data = json.loads(user_message)
                     if "realtimeInput" in message_data:
