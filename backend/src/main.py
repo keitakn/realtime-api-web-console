@@ -3,10 +3,20 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from presentation.router import realtime_apis, gemini
+from fastapi.middleware.cors import CORSMiddleware
+from presentation.router import realtime_apis, gemini, video_chat
 
 app = FastAPI(
     title="realtime-api-web-console-backend",
+)
+
+# CORS設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # 本番環境では適切なオリジンを指定してください
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -65,6 +75,7 @@ async def validation_exception_handler(
 
 # app.include_router(realtime_apis.router)
 app.include_router(gemini.router)
+app.include_router(video_chat.router)
 
 
 def start() -> None:
