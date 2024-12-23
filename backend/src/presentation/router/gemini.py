@@ -168,32 +168,7 @@ async def gemini_websocket_endpoint(websocket: WebSocket) -> None:
             while True:
                 user_message = await websocket.receive_text()
 
-                print(user_message)
-
-                try:
-                    message_data = json.loads(user_message)
-                    if "realtimeInput" in message_data:
-                        # 音声データの場合の処理
-                        media_chunks = message_data["realtimeInput"]["mediaChunks"]
-                        for chunk in media_chunks:
-                            if chunk["mimeType"] == "audio/pcm;rate=16000":
-                                # 音声データを送信
-                                await session.send(json.dumps({
-                                    "realtime_input": {
-                                        "media_chunks": [
-                                            {
-                                                "mime_type": "audio/pcm;rate=16000",
-                                                "data": chunk["data"]
-                                            }
-                                        ]
-                                    }
-                                }), end_of_turn=True)
-                    else:
-                        # 通常のJSONメッセージの場合
-                        await session.send(user_message, end_of_turn=True)
-                except json.JSONDecodeError:
-                    # 通常のテキストメッセージの場合
-                    await session.send(user_message, end_of_turn=True)
+                await session.send(user_message, end_of_turn=True)
 
                 combined_text = ""
                 async for response in session.receive():
