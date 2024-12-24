@@ -1,5 +1,5 @@
 import json
-from logging import Logger, LogRecord, getLogger, StreamHandler, Formatter, INFO
+from logging import Logger, LogRecord, getLogger, StreamHandler, Formatter, INFO, DEBUG
 from typing import Literal, TypedDict
 
 
@@ -31,7 +31,7 @@ LogLevel = Literal[0, 10, 20, 30, 40, 50]
 
 
 class AppLogger:
-    def __init__(self, level: LogLevel = INFO) -> None:
+    def __init__(self, level: LogLevel = DEBUG) -> None:
         self._logger = getLogger()
         self._logger.setLevel(level)
 

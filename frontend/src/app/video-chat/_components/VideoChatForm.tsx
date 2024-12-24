@@ -26,7 +26,7 @@ export function VideoChatForm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
-  const [messages, setMessages] = useState<string[]>([]); // メッセージの型を変更
+  const [messages, setMessages] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const currentFrameB64 = useRef<string | null>(null);
@@ -35,11 +35,36 @@ export function VideoChatForm() {
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const pcmDataRef = useRef<number[]>([]);
   const recordIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioUrl = useRef<string | null>(null);
+  const currentAudio = useRef<HTMLAudioElement | null>(null);
 
   // メッセージ表示関数
   const displayMessage = (message: string) => {
     console.log(message);
     setMessages(prev => [...prev, message]);
+  };
+
+  // 音声再生関数
+  const playAudio = async () => {
+    if (!audioUrl.current) {
+      return;
+    }
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current = null;
+    }
+    const audio = new Audio(audioUrl.current);
+    currentAudio.current = audio;
+    audio.addEventListener('ended', () => {
+      currentAudio.current = null;
+      audioUrl.current = null;
+    });
+    try {
+      await audio.play();
+    }
+    catch (error) {
+      console.error('音声再生エラー', error);
+    }
   };
 
   // WebSocket接続を確立
@@ -61,7 +86,8 @@ export function VideoChatForm() {
           displayMessage(`GEMINI: ${response.text}`);
         }
         if (response.audioData) {
-          await playAudio(response.audioData);
+          audioUrl.current = response.audioData;
+          await playAudio();
         }
       }
       catch (error) {
@@ -241,23 +267,12 @@ export function VideoChatForm() {
   useEffect(() => {
     return () => {
       stopRecording();
+      if (currentAudio.current) {
+        currentAudio.current.pause();
+        currentAudio.current = null;
+      }
     };
   }, []);
-
-  const playAudio = async (base64Audio: string) => {
-    try {
-      const audioContext = new AudioContext({ sampleRate: 24000 });
-      const arrayBuffer = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0)).buffer;
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContext.destination);
-      source.start();
-    }
-    catch (error) {
-      console.error('音声の再生中にエラーが発生しました:', error);
-    }
-  };
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-gray-100 p-4">
