@@ -172,9 +172,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             )
 
                                 if response.server_content.turn_complete:
-                                    app_logger.logger.info(
-                                        "AI Assistant Turn End"
-                                    )
+                                    app_logger.logger.info("AI Assistant Turn End")
 
                                     if combined_text:
                                         tts_payload = {
