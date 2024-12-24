@@ -10,7 +10,7 @@ class JsonFormatter(Formatter):
             exc_info = data.pop("exc_info")
             if exc_info:
                 data["traceback"] = self.formatException(exc_info).splitlines()
-            return json.dumps(data)
+            return json.dumps(data, ensure_ascii=False)
         except Exception:
             return super().format(record)
 
