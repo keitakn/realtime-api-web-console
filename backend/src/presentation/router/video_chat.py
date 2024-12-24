@@ -3,12 +3,98 @@ import json
 import base64
 import asyncio
 import requests
+from typing import TypedDict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
+from google.genai.live import AsyncSession  # noqa: F401
 from log.logger import AppLogger
 
 router = APIRouter()
 app_logger = AppLogger()
+
+
+class SendEmailDto(TypedDict):
+    to_email: str
+    subject: str
+    body: str
+
+
+class SendEmailResult(TypedDict):
+    result: bool
+
+
+# メール送信用の関数（ダミー）
+async def send_email(dto: SendEmailDto) -> SendEmailResult:
+    # Tools検証用のダミーの関数なので常にTrueを返す
+    return SendEmailResult(result=True)
+
+
+class CreateGoogleCalendarEventDto(TypedDict):
+    email: str
+    title: str
+
+
+class CreateGoogleCalendarEventResult(TypedDict):
+    result: bool
+
+
+async def create_google_calendar_event(
+    dto: CreateGoogleCalendarEventDto,
+) -> CreateGoogleCalendarEventResult:
+    # Tools検証用のダミーの関数なので常にTrueを返す
+    return CreateGoogleCalendarEventResult(result=True)
+
+
+# 関数のスキーマを定義
+send_email_schema = {
+    "name": "send_email",
+    "description": "メールアドレスにメールを送信する関数",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "dto": {
+                "type": "object",
+                "description": "送信するメールの詳細",
+                "properties": {
+                    "to_email": {
+                        "type": "string",
+                        "description": "送信先のメールアドレス",
+                    },
+                    "subject": {"type": "string", "description": "メールの件名"},
+                    "body": {"type": "string", "description": "メールの本文"},
+                },
+                "required": ["to_email", "subject", "body"],
+            }
+        },
+        "required": ["dto"],
+    },
+}
+
+create_google_calendar_event_schema = {
+    "name": "create_google_calendar_event",
+    "description": "Googleカレンダーに予定を登録する関数",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "dto": {
+                "type": "object",
+                "description": "Googleカレンダーに登録する予定の詳細",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "Googleカレンダーの持ち主のメールアドレスを指定する",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "登録する予定のタイトル",
+                    },
+                },
+                "required": ["email", "title"],
+            }
+        },
+        "required": ["dto"],
+    },
+}
 
 # システムプロンプト
 system_prompt = """
@@ -46,6 +132,10 @@ system_prompt = """
 - ユーザーに対してはちゃんをつけて呼んでください。
 - ユーザーの名前が分からない時は「ユーザーちゃん」と呼んでください。
 - ユーザーから名前を教えてもらったらユーザーから教えてもらった名前で呼んであげてください。
+
+# 便利な関数について
+- ユーザーにメールを送信する必要がある場合は send_email を利用可能です。ユーザーからメールアドレスを聞いてから利用してください。
+- ユーザーのGoogleカレンダーに予定を登録する場合は create_google_calendar_event_schema を利用可能です。ユーザーからメールアドレスを聞いてから利用してください。
 """
 
 # Gemini APIの設定
@@ -57,6 +147,7 @@ MODEL = "gemini-2.0-flash-exp"
 tools = [
     {"google_search": {}},
     {"code_execution": {}},
+    {"function_declarations": [send_email_schema, create_google_calendar_event_schema]},
 ]
 
 # 設定を直接定義
@@ -81,7 +172,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
 
     try:
         # Gemini APIセッションを開始
-        async with client.aio.live.connect(model=MODEL, config=config) as session:
+        async with client.aio.live.connect(model=MODEL, config=config) as session:  # type: AsyncSession
             app_logger.logger.info("Gemini APIに接続しました")
 
             async def send_to_gemini():
@@ -134,7 +225,72 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                             combined_text = ""
 
                             async for response in session.receive():
-                                app_logger.logger.debug(f"response: {response}")
+                                # 関数呼び出しの処理
+                                if (
+                                    response.tool_call
+                                    and response.tool_call.function_calls
+                                ):
+                                    for (
+                                        function_call
+                                    ) in response.tool_call.function_calls:
+                                        if function_call.name == "send_email":
+                                            # 関数を実行
+                                            result = await send_email(
+                                                SendEmailDto(
+                                                    **function_call.args["dto"]
+                                                )
+                                            )
+
+                                            app_logger.logger.info(
+                                                f"Function call ID is {function_call.id} Call Functions is 'send_email' result is {result}."
+                                            )
+
+                                            # `function_call.id` は function-call-xxxxxxxxxxxxxxxxxxxx のような値が返ってくる
+                                            # 関数の結果をモデルに送信
+                                            await session.send(
+                                                {
+                                                    "id": function_call.id,
+                                                    "name": "send_email",
+                                                    "response": result,
+                                                },
+                                                end_of_turn=True,
+                                            )
+
+                                        if (
+                                            function_call.name
+                                            == "create_google_calendar_event"
+                                        ):
+                                            # 関数を実行
+                                            result = await create_google_calendar_event(
+                                                CreateGoogleCalendarEventDto(
+                                                    **function_call.args["dto"]
+                                                )
+                                            )
+
+                                            app_logger.logger.info(
+                                                f"Function call ID is {function_call.id} Call Functions is 'create_google_calendar_event' result is {result}."
+                                            )
+
+                                            await session.send(
+                                                {
+                                                    "id": function_call.id,
+                                                    "name": "create_google_calendar_event",
+                                                    "response": result,
+                                                },
+                                                end_of_turn=True,
+                                            )
+
+                                # キャンセル処理の追加
+                                if response.tool_call_cancellation:
+                                    for (
+                                        cancelled_id
+                                    ) in response.tool_call_cancellation.ids:
+                                        # 必要に応じてキャンセル処理を実行
+                                        # function_call.id と関数の呼び出し結果をDBに保存しておいて、やるとしたら取り消し処理を行う等になると思う
+                                        # 若干ややこしいので、取り消し用の関数をToolsに設定しておくほうが簡単かもしれない
+                                        app_logger.logger.info(
+                                            f"Function call with ID {cancelled_id} was cancelled."
+                                        )
 
                                 if response.server_content is None:
                                     app_logger.logger.warning(
