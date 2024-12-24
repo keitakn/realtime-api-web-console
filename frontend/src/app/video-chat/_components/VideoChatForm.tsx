@@ -74,7 +74,6 @@ export function VideoChatForm() {
 
     ws.onopen = () => {
       console.log('WebSocket接続が確立されました');
-      sendInitialSetupMessage();
     };
 
     ws.onmessage = async (event) => {
@@ -83,7 +82,7 @@ export function VideoChatForm() {
         const response = new Response(messageData);
 
         if (response.text) {
-          displayMessage(`GEMINI: ${response.text}`);
+          displayMessage(response.text);
         }
         if (response.audioData) {
           audioUrl.current = response.audioData;
@@ -154,17 +153,6 @@ export function VideoChatForm() {
 
     return () => clearInterval(captureInterval);
   }, [stream]);
-
-  const sendInitialSetupMessage = () => {
-    if (webSocketRef.current) {
-      const setupMessage = {
-        setup: {
-          generation_config: { response_modalities: ['TEXT'] },
-        },
-      };
-      webSocketRef.current.send(JSON.stringify(setupMessage));
-    }
-  };
 
   const recordChunk = () => {
     const buffer = new ArrayBuffer(pcmDataRef.current.length * 2);
