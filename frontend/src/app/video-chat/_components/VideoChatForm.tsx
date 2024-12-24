@@ -148,7 +148,7 @@ export function VideoChatForm() {
     });
 
     const base64 = btoa(
-      String.fromCharCode.apply(null, new Uint8Array(buffer)),
+      String.fromCharCode(...Array.from(new Uint8Array(buffer))),
     );
 
     if (webSocketRef.current && currentFrameB64.current) {
