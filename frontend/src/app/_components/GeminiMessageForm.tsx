@@ -22,7 +22,7 @@ function UserMessage({ message }: { message: string }) {
 
 function AssistantMessage({ message }: { message: string }) {
   return (
-    <div className="flex bg-slate-100 px-4 py-8 sm:px-6 dark:bg-slate-900">
+    <div className="flex bg-slate-100 px-4 py-8 dark:bg-slate-900 sm:px-6">
       <Image
         className="mr-2 flex size-24 rounded-full sm:mr-4"
         src="/omochi.png"
@@ -133,7 +133,7 @@ export function GeminiMessageForm(): JSX.Element {
   return (
     <>
       <div
-        className="flex-1 overflow-y-auto bg-slate-300 text-sm leading-6 text-slate-900 shadow-md sm:text-base sm:leading-7 dark:bg-slate-800 dark:text-slate-300"
+        className="flex-1 overflow-y-auto bg-slate-300 text-sm leading-6 text-slate-900 shadow-md dark:bg-slate-800 dark:text-slate-300 sm:text-base sm:leading-7"
       >
         {messages.map((message, index) => (
           message.type === 'user'
@@ -148,7 +148,7 @@ export function GeminiMessageForm(): JSX.Element {
         <label htmlFor="prompt" className="sr-only">Enter your prompt</label>
         <div>
           <button
-            className="hover:text-blue-600 sm:p-2 dark:text-slate-200 dark:hover:text-blue-600"
+            className="hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-600 sm:p-2"
             type="button"
           >
             <svg
@@ -182,7 +182,7 @@ export function GeminiMessageForm(): JSX.Element {
 
         <div>
           <button
-            className="inline-flex hover:text-blue-600 sm:p-2 dark:text-slate-200 dark:hover:text-blue-600"
+            className="inline-flex hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-600 sm:p-2"
             type="submit"
           >
             <svg
