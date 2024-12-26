@@ -188,6 +188,14 @@ export function VideoChatForm() {
   const startRecording = async () => {
     if (!stream)
       return;
+
+    // ユーザーが話をしている場合はAssistantの返答音声再生を停止する
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current = null;
+      audioUrl.current = null;
+    }
+
     setIsRecording(true);
 
     try {
