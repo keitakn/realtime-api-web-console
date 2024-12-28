@@ -2,6 +2,7 @@
 
 import { Icon } from '@iconify/react';
 import { Button, cn, Tooltip } from '@nextui-org/react';
+import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useEffect, useRef, useState } from 'react';
 import { PromptInput } from './PromptInput';
 
@@ -314,66 +315,15 @@ export function InputPromptForm() {
             className="h-[240px] w-[320px] rounded-2xl bg-black"
           />
 
+          <Image
+            src="/omochi.png"
+            alt="Picture of the Cat AI Assistant Omochi"
+            width={146}
+            height={110}
+          />
+
           {/* 非表示のキャンバス */}
           <canvas ref={canvasRef} className="hidden" />
-
-          {/* 録音コントロール */}
-          <div className="flex space-x-4">
-            <button
-              onClick={startRecording}
-              disabled={isRecording}
-              className={`rounded-full p-3 ${
-                isRecording
-                  ? 'cursor-not-allowed bg-gray-300'
-                  : 'bg-blue-500 hover:bg-blue-600'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="size-6 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={stopRecording}
-              disabled={!isRecording}
-              className={`rounded-full p-3 ${
-                !isRecording
-                  ? 'cursor-not-allowed bg-gray-300'
-                  : 'bg-red-500 hover:bg-red-600'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="size-6 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                />
-              </svg>
-            </button>
-          </div>
 
           {/* メッセージ表示 */}
           <div className="mt-4 w-full space-y-4">
