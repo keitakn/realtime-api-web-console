@@ -1,5 +1,6 @@
 'use client';
 
+import { InputPromptForm } from '@/app/_components/InputPromptForm';
 import { useEffect, useRef, useState } from 'react';
 
 // Responseクラスの実装
@@ -353,6 +354,8 @@ export function VideoChatForm() {
           </div>
         </div>
       </div>
+
+      <InputPromptForm />
     </div>
   );
 }
