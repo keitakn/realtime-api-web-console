@@ -182,6 +182,10 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                         try:
                             message = await websocket.receive_text()
                             data = json.loads(message)
+
+                            if "input_text" in data:
+                                await session.send(data["input_text"], end_of_turn=True)
+
                             if "realtime_input" in data:
                                 for chunk in data["realtime_input"]["media_chunks"]:
                                     if chunk["mime_type"] == "audio/pcm":

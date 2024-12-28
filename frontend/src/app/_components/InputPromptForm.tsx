@@ -287,6 +287,12 @@ export function InputPromptForm() {
 
     if (textareaRef.current?.value != null && textareaRef.current?.value !== '') {
       setPrompt('');
+      if (webSocketRef.current) {
+        const payload = {
+          input_text: textareaRef.current?.value,
+        };
+        webSocketRef.current.send(JSON.stringify(payload));
+      }
     }
   };
 
