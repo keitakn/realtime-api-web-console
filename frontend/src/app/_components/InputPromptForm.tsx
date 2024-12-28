@@ -78,7 +78,7 @@ export function InputPromptForm() {
     webSocketRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket接続が確立されました');
+      console.log('WebSocket接続が確立��れました');
     };
 
     ws.onmessage = async (event) => {
@@ -398,8 +398,28 @@ export function InputPromptForm() {
           endContent={(
             <div className="absolute right-0 flex h-full flex-col items-end justify-between gap-2">
               <Tooltip showArrow content="Speak">
-                <Button isIconOnly radius="full" size="sm" variant="light">
-                  <Icon className="text-default-500" icon="solar:microphone-3-linear" width={20} />
+                <Button
+                  isIconOnly
+                  radius="full"
+                  size="sm"
+                  variant="light"
+                  onPress={() => {
+                    if (isRecording) {
+                      stopRecording();
+                    }
+                    else {
+                      startRecording();
+                    }
+                  }}
+                >
+                  <Icon
+                    className={cn(
+                      'text-default-500',
+                      isRecording && 'text-red-500',
+                    )}
+                    icon="solar:microphone-3-linear"
+                    width={20}
+                  />
                 </Button>
               </Tooltip>
               <div className="flex items-end gap-2">
