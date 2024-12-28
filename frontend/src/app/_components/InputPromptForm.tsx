@@ -28,6 +28,7 @@ class Response {
 
 export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,15 +62,18 @@ export function InputPromptForm() {
     }
     const audio = new Audio(audioUrl.current);
     currentAudio.current = audio;
+    setIsSpeaking(true);
     audio.addEventListener('ended', () => {
       currentAudio.current = null;
       audioUrl.current = null;
+      setIsSpeaking(false);
     });
     try {
       await audio.play();
     }
     catch (error) {
       console.error('音声再生エラー', error);
+      setIsSpeaking(false);
     }
   };
 
@@ -130,7 +134,7 @@ export function InputPromptForm() {
         }
       }
       catch (err) {
-        console.error('Webカメラへのアクセスエラー:', err);
+        console.error('Webカメラへのアクセスエ��ー:', err);
       }
     };
 
@@ -307,20 +311,27 @@ export function InputPromptForm() {
     <>
       <div className="w-full max-w-4xl rounded-lg bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center space-y-4">
-          {/* ビデオ表示 */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="h-[240px] w-[320px] rounded-2xl bg-black"
-          />
+          {/* ビデオとキャラクターを横並びに */}
+          <div className="flex items-center justify-center gap-8">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="h-[240px] w-[320px] rounded-2xl bg-black"
+            />
 
-          <Image
-            src="/omochi.png"
-            alt="Picture of the Cat AI Assistant Omochi"
-            width={146}
-            height={110}
-          />
+            <div className="flex flex-col items-center">
+              <Image
+                src="/omochi.png"
+                alt="Picture of the Cat AI Assistant Omochi"
+                width={146}
+                height={110}
+              />
+              {isSpeaking && (
+                <p className="mt-2 text-sm text-blue-500">おもちが話しています...</p>
+              )}
+            </div>
+          </div>
 
           {/* 非表示のキャンバス */}
           <canvas ref={canvasRef} className="hidden" />
