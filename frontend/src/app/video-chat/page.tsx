@@ -1,7 +1,7 @@
-import { VideoChatForm } from '@/app/video-chat/_components/VideoChatForm';
+import { VideoChatContents } from '@/app/video-chat/_components/VideoChatContents';
 
 function VideoChatPage() {
-  return <VideoChatForm />;
+  return <VideoChatContents />;
 }
 
 export default VideoChatPage;
