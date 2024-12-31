@@ -361,7 +361,6 @@ export function InputPromptForm() {
       </div>
 
       <div className="flex flex-col gap-4 px-1">
-        {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} showFeedback={false} />}
         {messages.map((message, index) => {
           return (
             <MessageCard
@@ -372,6 +371,7 @@ export function InputPromptForm() {
             />
           );
         })}
+        {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} showFeedback={false} />}
       </div>
 
       <form className="flex w-full items-start gap-2" onSubmit={handleSubmit}>
