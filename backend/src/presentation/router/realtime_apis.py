@@ -332,7 +332,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             )
 
                                 if response.server_content.turn_complete:
-                                    app_logger.logger.info("AI Assistant Turn End")
+                                    app_logger.logger.info("AI Assistantのターン終了")
 
                                     if combined_text:
                                         tts_payload = {
@@ -365,7 +365,11 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             )
 
                                         combined_text = ""
-                                    app_logger.logger.info("Rurn End")
+
+                                    # クライアント側にAI Assistantのターンが終わった事を知らせる
+                                    await websocket.send_text(
+                                        json.dumps({"endOfTurn": True})
+                                    )
 
                         except WebSocketDisconnect:
                             app_logger.logger.info(

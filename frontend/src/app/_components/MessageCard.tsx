@@ -19,7 +19,7 @@ type Props = HTMLAttributes<HTMLDivElement> & {
   onAttemptFeedback?: (feedback: 'like' | 'dislike' | 'same') => void;
 };
 
-export function MessageCard({ ref, avatar, message, showFeedback, attempts = 1, currentAttempt = 1, status, onMessageCopy, onAttemptChange, onFeedback, onAttemptFeedback, className, messageClassName, ...props }: Props & { ref: RefObject<HTMLDivElement> }) {
+export function MessageCard({ ref, avatar, message, showFeedback, attempts = 1, currentAttempt = 1, status, onMessageCopy, onAttemptChange, onFeedback, onAttemptFeedback, className, messageClassName, ...props }: Props & { ref?: RefObject<HTMLDivElement> }) {
   const [feedback, setFeedback] = useState<'like' | 'dislike'>();
   const [attemptFeedback, setAttemptFeedback] = useState<'like' | 'dislike' | 'same'>();
 

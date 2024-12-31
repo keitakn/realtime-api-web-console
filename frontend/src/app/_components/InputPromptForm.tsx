@@ -1,5 +1,6 @@
 'use client';
 
+import { MessageCard } from '@/app/_components/MessageCard';
 import { Icon } from '@iconify/react';
 import { Button, cn, Tooltip } from '@nextui-org/react';
 import Image from 'next/image';
@@ -23,8 +24,16 @@ class Response {
     if (data.audio) {
       this.audioData = data.audio;
     }
+    if (data.endOfTurn) {
+      this.endOfTurn = data.endOfTurn;
+    }
   }
 }
+
+type Message = {
+  role: 'user' | 'assistant';
+  message: string;
+};
 
 export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
@@ -33,7 +42,7 @@ export function InputPromptForm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const currentFrameB64 = useRef<string | null>(null);
@@ -44,12 +53,7 @@ export function InputPromptForm() {
   const recordIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioUrl = useRef<string | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-
-  // メッセージ表示関数
-  const displayMessage = (message: string) => {
-    console.log(message);
-    setMessages(prev => [...prev, message]);
-  };
+  const [streamingMessage, setStreamingMessage] = useState<string>('');
 
   // 音声再生関数
   const playAudio = async () => {
@@ -83,8 +87,10 @@ export function InputPromptForm() {
     webSocketRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket接続が確立��れました');
+      console.log('WebSocket接続完了');
     };
+
+    let newResponseMessage = '';
 
     ws.onmessage = async (event) => {
       try {
@@ -92,8 +98,18 @@ export function InputPromptForm() {
         const response = new Response(messageData);
 
         if (response.text) {
-          displayMessage(response.text);
+          newResponseMessage += response.text;
+          setStreamingMessage(newResponseMessage);
         }
+
+        if (response.endOfTurn === true) {
+          const lastAssistantMessage = newResponseMessage;
+
+          setMessages(prev => [...prev, { role: 'assistant', message: lastAssistantMessage }]);
+          newResponseMessage = '';
+          setStreamingMessage('');
+        }
+
         if (response.audioData) {
           audioUrl.current = response.audioData;
           await playAudio();
@@ -341,16 +357,21 @@ export function InputPromptForm() {
 
           {/* 非表示のキャンバス */}
           <canvas ref={canvasRef} className="hidden" />
-
-          {/* メッセージ表示 */}
-          <div className="mt-4 w-full space-y-4">
-            {messages.map((message, index) => (
-              <p key={index} className="rounded-lg bg-gray-100 p-4">
-                {message}
-              </p>
-            ))}
-          </div>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-4 px-1">
+        {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} showFeedback={false} />}
+        {messages.map((message, index) => {
+          return (
+            <MessageCard
+              key={index}
+              avatar="/omochi.png"
+              message={message.message}
+              showFeedback={false}
+            />
+          );
+        })}
       </div>
 
       <form className="flex w-full items-start gap-2" onSubmit={handleSubmit}>
