@@ -308,6 +308,7 @@ export function InputPromptForm() {
           input_text: textareaRef.current?.value,
         };
         webSocketRef.current.send(JSON.stringify(payload));
+        setMessages(prev => [...prev, { role: 'user', message: payload.input_text }]);
       }
     }
   };
@@ -362,6 +363,16 @@ export function InputPromptForm() {
 
       <div className="flex flex-col gap-4 px-1">
         {messages.map((message, index) => {
+          if (message.role === 'user') {
+            return (
+              <MessageCard
+                key={index}
+                message={message.message}
+                showFeedback={false}
+              />
+            );
+          }
+
           return (
             <MessageCard
               key={index}
