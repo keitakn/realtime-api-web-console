@@ -25,7 +25,7 @@ npm ci
 `.env.local` を以下の内容で作成します。
 
 ```
-NEXT_PUBLIC_GEMINI_REALTIME_API_SERVER_URL=ws://localhost:8000/realtime-apis/gemini
+NEXT_PUBLIC_VIDEO_CHAT_API_SERVER_URL=ws://localhost:8000/realtime-apis/video-chat
 ```
 
 ### バックエンドのAPIサーバーを起動
