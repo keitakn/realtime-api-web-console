@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from presentation.router import realtime_apis, gemini, video_chat
+from presentation.router import realtime_apis
 
 app = FastAPI(
     title="realtime-api-web-console-backend",
@@ -75,9 +75,7 @@ async def validation_exception_handler(
     )
 
 
-# app.include_router(realtime_apis.router)
-app.include_router(gemini.router)
-app.include_router(video_chat.router)
+app.include_router(realtime_apis.router)
 
 
 def start() -> None:
