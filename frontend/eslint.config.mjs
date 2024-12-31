@@ -58,6 +58,6 @@ export default antfu(
       'node/prefer-global/process': 'off',
     },
   },
-  ...compat.extends('plugin:@next/next/core-web-vitals', 'next/typescript'),
+  ...compat.extends('plugin:@next/next/core-web-vitals'),
   ...tailwindcss.configs['flat/recommended'],
 );
