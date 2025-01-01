@@ -108,6 +108,14 @@ export function InputPromptForm() {
       return;
     }
 
+    // 新しい音声が送信された場合は既存の音声を停止
+    if (currentAudio.current) {
+      log.info('既存の音声を停止');
+      currentAudio.current.pause();
+      currentAudio.current = null;
+      setIsSpeaking(false);
+    }
+
     if (!isAudioInitialized) {
       log.warn('音声が初期化されていません。初期化を試みます。');
       const initialized = await initializeAudio();
