@@ -1,4 +1,8 @@
 # realtime-api-web-console
+
+[![ci-frontend](https://github.com/keitakn/realtime-api-web-console/actions/workflows/ci-frontend.yml/badge.svg)](https://github.com/keitakn/realtime-api-web-console/actions/workflows/ci-frontend.yml)
+[![deploy backend to production](https://github.com/keitakn/realtime-api-web-console/actions/workflows/deploy-backend-to-production.yml/badge.svg)](https://github.com/keitakn/realtime-api-web-console/actions/workflows/deploy-backend-to-production.yml)
+
 AIとのリアルタイムなやり取りを行う為の実験用リポジトリ
 
 以下の通り `frontend` と `backend` のREADMEを参考にそれぞれを起動するとAIとのリアルタイムなやり取りを行うWebコンソールが起動します。
