@@ -50,10 +50,8 @@ export function InputPromptForm() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const currentFrameB64 = useRef<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const pcmDataRef = useRef<number[]>([]);
-  const recordIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioUrl = useRef<string | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
@@ -182,37 +180,6 @@ export function InputPromptForm() {
     return () => clearInterval(captureInterval);
   }, [stream]);
 
-  const recordChunk = () => {
-    const buffer = new ArrayBuffer(pcmDataRef.current.length * 2);
-    const view = new DataView(buffer);
-    pcmDataRef.current.forEach((value, index) => {
-      view.setInt16(index * 2, value, true);
-    });
-
-    const base64 = btoa(
-      String.fromCharCode(...Array.from(new Uint8Array(buffer))),
-    );
-
-    if (webSocketRef.current && currentFrameB64.current) {
-      const payload = {
-        realtime_input: {
-          media_chunks: [
-            {
-              mime_type: 'audio/pcm',
-              data: base64,
-            },
-            {
-              mime_type: 'image/jpeg',
-              data: currentFrameB64.current,
-            },
-          ],
-        },
-      };
-      webSocketRef.current.send(JSON.stringify(payload));
-    }
-    pcmDataRef.current = [];
-  };
-
   const startRecording = async () => {
     if (!stream)
       return;
@@ -238,22 +205,39 @@ export function InputPromptForm() {
         },
       });
 
-      sourceRef.current = audioContextRef.current.createMediaStreamSource(audioStream);
-      processorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+      await audioContextRef.current.audioWorklet.addModule('/audio-processing.worklet.js');
 
-      processorRef.current.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcm16 = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          pcm16[i] = inputData[i] * 0x7FFF;
+      sourceRef.current = audioContextRef.current.createMediaStreamSource(audioStream);
+      audioWorkletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
+
+      audioWorkletNodeRef.current.port.onmessage = (event) => {
+        if (event.data.event === 'chunk') {
+          const base64 = btoa(
+            String.fromCharCode(...new Uint8Array(event.data.data.int16arrayBuffer)),
+          );
+
+          if (webSocketRef.current && currentFrameB64.current) {
+            const payload = {
+              realtime_input: {
+                media_chunks: [
+                  {
+                    mime_type: 'audio/pcm',
+                    data: base64,
+                  },
+                  {
+                    mime_type: 'image/jpeg',
+                    data: currentFrameB64.current,
+                  },
+                ],
+              },
+            };
+            webSocketRef.current.send(JSON.stringify(payload));
+          }
         }
-        pcmDataRef.current.push(...Array.from(pcm16));
       };
 
-      sourceRef.current.connect(processorRef.current);
-      processorRef.current.connect(audioContextRef.current.destination);
-
-      recordIntervalRef.current = setInterval(recordChunk, 3000);
+      sourceRef.current.connect(audioWorkletNodeRef.current);
+      audioWorkletNodeRef.current.connect(audioContextRef.current.destination);
     }
     catch (error) {
       log.error(`録音の開始中にエラーが発生しました: ${error}`);
@@ -264,14 +248,9 @@ export function InputPromptForm() {
   const stopRecording = () => {
     setIsRecording(false);
 
-    if (recordIntervalRef.current) {
-      clearInterval(recordIntervalRef.current);
-      recordIntervalRef.current = null;
-    }
-
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
+    if (audioWorkletNodeRef.current) {
+      audioWorkletNodeRef.current.disconnect();
+      audioWorkletNodeRef.current = null;
     }
 
     if (sourceRef.current) {
@@ -283,8 +262,6 @@ export function InputPromptForm() {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-
-    pcmDataRef.current = [];
   };
 
   // コンポーネントのアンマウント時にクリーンアップ
