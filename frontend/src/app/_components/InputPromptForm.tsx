@@ -1,6 +1,7 @@
 'use client';
 
 import { MessageCard } from '@/app/_components/MessageCard';
+import { logger } from '@/logging/logger';
 import { Icon } from '@iconify/react';
 import { Button, cn, Tooltip } from '@nextui-org/react';
 import Image from 'next/image';
@@ -34,6 +35,8 @@ type Message = {
   role: 'user' | 'assistant';
   message: string;
 };
+
+const log = logger.child({ module: 'src/app/_components/InputPromptForm.tsx' });
 
 export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
@@ -76,7 +79,7 @@ export function InputPromptForm() {
       await audio.play();
     }
     catch (error) {
-      console.error('音声再生エラー', error);
+      log.error(`音声再生エラー: ${error}`);
       setIsSpeaking(false);
     }
   };
@@ -87,7 +90,7 @@ export function InputPromptForm() {
     webSocketRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket接続完了');
+      log.info('WebSocket接続完了');
     };
 
     let newResponseMessage = '';
@@ -116,17 +119,16 @@ export function InputPromptForm() {
         }
       }
       catch (error) {
-        console.error('メッセージの処理中にエラーが発生しました:', error);
+        log.error(`メッセージの処理中にエラーが発生しました: ${error}`);
       }
     };
 
     ws.onclose = () => {
-      console.log('WebSocket接続が閉じられました');
-      alert('Connection closed');
+      log.warn('WebSocket接続が閉じられました');
     };
 
     ws.onerror = (event) => {
-      console.log('websocket error:', event);
+      log.error(`websocket error: ${event}`);
     };
 
     return () => {
@@ -149,8 +151,8 @@ export function InputPromptForm() {
           videoRef.current.srcObject = mediaStream;
         }
       }
-      catch (err) {
-        console.error('Webカメラへのアクセスエ��ー:', err);
+      catch (error) {
+        log.error(`Webカメラへのアクセスエラー: ${error}`);
       }
     };
 
@@ -254,7 +256,7 @@ export function InputPromptForm() {
       recordIntervalRef.current = setInterval(recordChunk, 3000);
     }
     catch (error) {
-      console.error('録音の開始中にエラーが発生しました:', error);
+      log.error(`録音の開始中にエラーが発生しました: ${error}`);
       setIsRecording(false);
     }
   };
