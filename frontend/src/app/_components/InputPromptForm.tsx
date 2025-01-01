@@ -8,6 +8,15 @@ import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import { PromptInput } from './PromptInput';
 
+// HTMLAudioElementの型を拡張
+declare global {
+  // eslint-disable-next-line ts/consistent-type-definitions
+  interface HTMLAudioElement {
+    playsInline: boolean;
+    webkitPlaysInline: boolean;
+  }
+}
+
 // Responseクラスの実装
 class Response {
   text: string | null;
@@ -116,8 +125,8 @@ export function InputPromptForm() {
       log.info(`音声の状態 - readyState: ${audio.readyState}, networkState: ${audio.networkState}`);
 
       // iOS対応の設定を追加
-      (audio as any).playsInline = true;
-      (audio as any).webkitPlaysInline = true;
+      audio.playsInline = true;
+      audio.webkitPlaysInline = true;
 
       // AudioContextが初期化済みであることを確認
       if (audioContextRef.current?.state === 'suspended') {
