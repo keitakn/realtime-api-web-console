@@ -84,21 +84,44 @@ export function InputPromptForm() {
     }
 
     try {
-      log.info('AudioContext初期化開始');
-      const ctx = new AudioContext();
-      audioContextRef.current = ctx;
+      // log.info('AudioContext初期化開始');
+      // const ctx = new AudioContext();
+      // audioContextRef.current = ctx;
+      //
+      // // 無音のバッファを再生して再生権限を取得
+      // log.info('無音バッファの作成');
+      // const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      // const source = ctx.createBufferSource();
+      // source.buffer = buffer;
+      // source.connect(ctx.destination);
+      //
+      // log.info('無音バッファの再生開始');
+      // source.start(0);
 
-      // 無音のバッファを再生して再生権限を取得
-      log.info('無音バッファの作成');
-      const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
+      const generateVoiceResponse = await fetch(
+        '/api/voices',
+        { method: 'POST', body: JSON.stringify({ script: 'こんにちは！よろしくね！' }) },
+      );
 
-      log.info('無音バッファの再生開始');
-      source.start(0);
+      const generateVoiceResponseBody = await generateVoiceResponse.json();
+
+      const generatedAudioFileUrl = generateVoiceResponseBody.generatedAudioFileUrl;
+
+      audioContextRef.current = new AudioContext();
+
+      await audioContextRef.current.resume();
+
+      // 初期化時の音声を再生
+      const audio = new Audio(generatedAudioFileUrl);
+
+      audio.playsInline = true;
+      audio.webkitPlaysInline = true;
+      setIsSpeaking(true);
+      await audio.play();
+      setIsSpeaking(false);
 
       setIsAudioInitialized(true);
+      setShowAudioInitPrompt(false);
       log.info('音声再生の初期化が完了しました');
       return true;
     }
@@ -126,14 +149,14 @@ export function InputPromptForm() {
       setIsSpeaking(false);
     }
 
-    if (!isAudioInitialized) {
-      log.warn('音声が初期化されていません。初期化を試みます。');
-      const initialized = await initializeAudio();
-      if (!initialized) {
-        log.error('音声の初期化に失敗しました');
-        return;
-      }
-    }
+    // if (!isAudioInitialized) {
+    //   log.warn('音声が初期化されていません。初期化を試みます。');
+    //   const initialized = await initializeAudio();
+    //   if (!initialized) {
+    //     log.error('音声の初期化に失敗しました');
+    //     return;
+    //   }
+    // }
 
     try {
       const audio = new Audio(audioUrl.current);
