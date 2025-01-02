@@ -552,9 +552,11 @@ export function InputPromptForm() {
                   variant="light"
                   onPress={async () => {
                     // マイクボタンクリック時に音声初期化も行う
-                    if (!isAudioInitialized) {
-                      await initializeAudio();
-                    }
+                    // if (!isAudioInitialized) {
+                    //   await initializeAudio();
+                    // }
+
+                    await initializeAudio();
 
                     if (isRecording) {
                       stopRecording();
