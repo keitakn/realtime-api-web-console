@@ -47,6 +47,7 @@ class Response {
 type Message = {
   role: 'user' | 'assistant';
   message: string;
+  audioUrl?: string;
 };
 
 const log = logger.child({ module: 'src/app/_components/InputPromptForm.tsx' });
@@ -66,7 +67,7 @@ export function InputPromptForm() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const audioUrl = useRef<string | null>(null);
+  const audioUrl = useRef<string | undefined>(undefined);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
 
@@ -178,7 +179,7 @@ export function InputPromptForm() {
       addListener('ended', () => {
         log.info('音声再生完了');
         currentAudio.current = null;
-        audioUrl.current = null;
+        audioUrl.current = undefined;
         setIsSpeaking(false);
       });
 
@@ -221,7 +222,11 @@ export function InputPromptForm() {
 
         if (response.endOfTurn === true) {
           const lastAssistantMessage = newResponseMessage;
-          setMessages(prev => [...prev, { role: 'assistant', message: lastAssistantMessage }]);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            message: lastAssistantMessage,
+            audioUrl: audioUrl.current || undefined,
+          }]);
           newResponseMessage = '';
           setStreamingMessage('');
         }
@@ -229,6 +234,7 @@ export function InputPromptForm() {
         if (response.audioData) {
           log.info('音声データを受信:', response.audioData.substring(0, 50));
           audioUrl.current = response.audioData;
+          log.info('音声URL設定:', audioUrl.current?.substring(0, 50));
           log.info('playAudio関数を呼び出し');
           await playAudio();
         }
@@ -305,7 +311,7 @@ export function InputPromptForm() {
     if (currentAudio.current) {
       currentAudio.current.pause();
       currentAudio.current = null;
-      audioUrl.current = null;
+      audioUrl.current = undefined;
     }
 
     setIsRecording(true);
@@ -474,11 +480,12 @@ export function InputPromptForm() {
               key={index}
               avatar="/omochi.png"
               message={message.message}
-              showFeedback={false}
+              showFeedback
+              audioUrl={message.audioUrl}
             />
           );
         })}
-        {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} showFeedback={false} />}
+        {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} showFeedback />}
       </div>
 
       <form className="flex w-full items-start gap-2" onSubmit={handleSubmit}>
