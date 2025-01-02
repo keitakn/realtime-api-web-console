@@ -6,11 +6,6 @@ import { Icon } from '@iconify/react';
 import {
   Button,
   cn,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   Tooltip,
 } from '@nextui-org/react';
 import Image from 'next/image';
@@ -60,7 +55,6 @@ export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
-  const [showAudioInitPrompt, setShowAudioInitPrompt] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -100,7 +94,7 @@ export function InputPromptForm() {
 
       const generateVoiceResponse = await fetch(
         '/api/voices',
-        { method: 'POST', body: JSON.stringify({ script: 'こんにちは！よろしくね！' }) },
+        { method: 'POST', body: JSON.stringify({ script: 'マイクがオンになったよ！' }) },
       );
 
       const generateVoiceResponseBody = await generateVoiceResponse.json();
@@ -121,7 +115,6 @@ export function InputPromptForm() {
       setIsSpeaking(false);
 
       setIsAudioInitialized(true);
-      setShowAudioInitPrompt(false);
       log.info('音声再生の初期化が完了しました');
       return true;
     }
@@ -149,14 +142,14 @@ export function InputPromptForm() {
       setIsSpeaking(false);
     }
 
-    // if (!isAudioInitialized) {
-    //   log.warn('音声が初期化されていません。初期化を試みます。');
-    //   const initialized = await initializeAudio();
-    //   if (!initialized) {
-    //     log.error('音声の初期化に失敗しました');
-    //     return;
-    //   }
-    // }
+    if (!isAudioInitialized) {
+      log.warn('音声が初期化されていません。初期化を試みます。');
+      // const initialized = await initializeAudio();
+      // if (!initialized) {
+      //   log.error('音声の初期化に失敗しました');
+      //   return;
+      // }
+    }
 
     try {
       const audio = new Audio(audioUrl.current);
@@ -454,32 +447,8 @@ export function InputPromptForm() {
     setPrompt(event.target.value);
   };
 
-  // モーダルの開始ボタンクリック時に音声初期化を行う
-  const handleInitializeAudioModal = async () => {
-    if (!isAudioInitialized) {
-      const initialized = await initializeAudio();
-      if (initialized) {
-        setShowAudioInitPrompt(false);
-      }
-    }
-  };
-
   return (
     <>
-      <Modal isOpen={(showAudioInitPrompt && !isAudioInitialized)}>
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">音声通話を有効化</ModalHeader>
-          <ModalBody>
-            <p>AI Assistantの応答が音声として再生されます。問題ない場合は開始ボタンを押下してください。</p>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="primary" onPress={handleInitializeAudioModal}>
-              開始する
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
       <div className="w-full max-w-4xl rounded-lg bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center space-y-4">
           {/* ビデオとキャラクターを横並びに */}
