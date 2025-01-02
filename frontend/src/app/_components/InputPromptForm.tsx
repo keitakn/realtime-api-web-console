@@ -139,6 +139,7 @@ export function InputPromptForm() {
       // iOS対応の設定を追加
       audio.playsInline = true;
       audio.webkitPlaysInline = true;
+      audio.autoplay = true;
 
       // AudioContextが初期化済みであることを確認
       if (audioContextRef.current?.state === 'suspended') {
