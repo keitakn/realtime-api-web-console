@@ -3,7 +3,16 @@
 import { MessageCard } from '@/app/_components/MessageCard';
 import { logger } from '@/logging/logger';
 import { Icon } from '@iconify/react';
-import { Button, cn, Tooltip } from '@nextui-org/react';
+import {
+  Button,
+  cn,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  Tooltip,
+} from '@nextui-org/react';
 import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import { PromptInput } from './PromptInput';
@@ -51,6 +60,7 @@ export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
+  const [showAudioInitPrompt, setShowAudioInitPrompt] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -421,8 +431,32 @@ export function InputPromptForm() {
     setPrompt(event.target.value);
   };
 
+  // モーダルの開始ボタンクリック時に音声初期化を行う
+  const handleInitializeAudioModal = async () => {
+    if (!isAudioInitialized) {
+      const initialized = await initializeAudio();
+      if (initialized) {
+        setShowAudioInitPrompt(false);
+      }
+    }
+  };
+
   return (
     <>
+      <Modal isOpen={(showAudioInitPrompt && !isAudioInitialized)}>
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">音声通話を有効化</ModalHeader>
+          <ModalBody>
+            <p>AI Assistantの応答が音声として再生されます。問題ない場合は開始ボタンを押下してください。</p>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="primary" onPress={handleInitializeAudioModal}>
+              開始する
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       <div className="w-full max-w-4xl rounded-lg bg-white p-6 shadow-lg">
         <div className="flex flex-col items-center space-y-4">
           {/* ビデオとキャラクターを横並びに */}
