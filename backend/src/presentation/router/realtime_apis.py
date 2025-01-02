@@ -342,7 +342,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                     if combined_text:
                                         tts_payload = {
                                             "script": combined_text,
-                                            "format": "wav",
+                                            "format": "mp3",
                                             "speed": "0.8",
                                         }
                                         tts_headers = {
