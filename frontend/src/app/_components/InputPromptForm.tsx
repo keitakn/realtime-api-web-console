@@ -69,7 +69,7 @@ export function InputPromptForm() {
   const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const audioUrl = useRef<string | undefined>(undefined);
-  const currentAudio = useRef<HTMLAudioElement | null>(null);
+  const currentAudio = useRef<AudioBufferSourceNode | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
 
   // 音声再生の初期化関数を修正
@@ -117,29 +117,49 @@ export function InputPromptForm() {
 
     // 新しい音声が送信された場合は既存の音声を停止
     if (currentAudio.current) {
-      currentAudio.current.pause();
+      try {
+        currentAudio.current.stop();
+      }
+      catch (error) {
+        // すでに停止している場合などのエラーは無視
+        console.error(error);
+      }
       currentAudio.current = null;
       setIsSpeaking(false);
     }
 
     try {
-      const audio = new Audio(audioUrl.current);
-      currentAudio.current = audio;
+      if (!playAudioContextRef.current) {
+        log.warn('AudioContextが初期化されていません');
+        return;
+      }
 
-      // iOS対応の設定
-      audio.playsInline = true;
-      audio.webkitPlaysInline = true;
+      // 音声データを取得
+      const response = await fetch(audioUrl.current);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // AudioBufferを作成
+      const audioBuffer = await playAudioContextRef.current.decodeAudioData(arrayBuffer);
+
+      // AudioBufferSourceNodeを作成
+      const source = playAudioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(playAudioContextRef.current.destination);
+
+      // 現在のソースを保持
+      currentAudio.current = source;
 
       setIsSpeaking(true);
 
-      // 音声再生完了時の処理
-      audio.onended = () => {
+      // 再生終了時の処理
+      source.onended = () => {
         currentAudio.current = null;
         audioUrl.current = undefined;
         setIsSpeaking(false);
       };
 
-      await audio.play();
+      // 再生開始
+      source.start(0);
     }
     catch (error) {
       log.error(`音声再生エラー: ${error}`);
@@ -162,6 +182,23 @@ export function InputPromptForm() {
       try {
         const messageData = JSON.parse(event.data);
         log.info('受信したWebSocketメッセージ:', messageData);
+
+        // ユーザーからの新しい入力があった場合は再生中の音声を停止
+        if (messageData.text || messageData.audio) {
+          // 現在再生中のAudioBufferSourceNodeを停止
+          if (currentAudio.current) {
+            try {
+              currentAudio.current.stop();
+            }
+            catch (error) {
+              // すでに停止している場合などのエラーは無視
+              console.error(error);
+            }
+            currentAudio.current = null;
+            setIsSpeaking(false);
+          }
+        }
+
         const response = new Response(messageData);
 
         if (response.text != null && response.text) {
@@ -184,6 +221,13 @@ export function InputPromptForm() {
           log.info('音声データを受信:', response.audioData.substring(0, 50));
           audioUrl.current = response.audioData;
           log.info('音声URL設定:', audioUrl.current?.substring(0, 50));
+
+          // 音声初期化が必要な場合は初期化を行う
+          if (!isAudioInitialized) {
+            log.info('音声初期化を実行');
+            await initializeAudio();
+          }
+
           log.info('playAudio関数を呼び出し');
           await playAudio();
         }
@@ -258,7 +302,7 @@ export function InputPromptForm() {
 
     // ユーザーが話をしている場合はAssistantの返答音声再生を停止する
     if (currentAudio.current) {
-      currentAudio.current.pause();
+      currentAudio.current.stop();
       currentAudio.current = null;
       audioUrl.current = undefined;
     }
@@ -341,8 +385,17 @@ export function InputPromptForm() {
     return () => {
       stopRecording();
       if (currentAudio.current) {
-        currentAudio.current.pause();
+        try {
+          currentAudio.current.stop();
+        }
+        catch (error) {
+          // すでに停止している場合などのエラーは無視
+          console.error(error);
+        }
         currentAudio.current = null;
+      }
+      if (playAudioContextRef.current) {
+        playAudioContextRef.current.close();
       }
     };
   }, []);
@@ -351,6 +404,19 @@ export function InputPromptForm() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    // 送信時に再生中の音声を停止
+    if (currentAudio.current) {
+      try {
+        currentAudio.current.stop();
+      }
+      catch (error) {
+        // すでに停止している場合などのエラーは無視
+        console.error(error);
+      }
+      currentAudio.current = null;
+      setIsSpeaking(false);
+    }
 
     if (textareaRef.current?.value != null && textareaRef.current?.value !== '') {
       setPrompt('');
