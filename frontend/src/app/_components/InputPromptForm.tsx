@@ -82,6 +82,9 @@ export function InputPromptForm() {
       log.info('AudioContext初期化開始');
       const ctx = new AudioContext();
       audioContextRef.current = ctx;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
 
       // 無音のバッファを再生して再生権限を取得
       log.info('無音バッファの作成');
@@ -122,7 +125,7 @@ export function InputPromptForm() {
     }
 
     if (!isAudioInitialized) {
-      log.warn('音声が初期化されていません。初期化を試みます。');
+      log.info('音声が初期化されていません。初期化を試みます。');
       const initialized = await initializeAudio();
       if (!initialized) {
         log.error('音声の初期化に失敗しました');
