@@ -17,6 +17,10 @@ MacOSを利用する前提の手順になります。
 ```bash
 export GEMINI_API_KEY="https://aistudio.google.com/ で発行したAPIキー"
 export NIJIVOICE_API_KEY="https://platform.nijivoice.com/ で発行したAPIキー"
+export R2_ENDPOINT_URL="Cloudflareで作成したR2バケットのエンドポイントURLを指定（S3 APIの値）"
+export R2_ACCESS_KEY_ID="Cloudflareで作成したアクセスキーID"
+export R2_SECRET_ACCESS_KEY="Cloudflareで作成したアクセスシークレットキー"
+export R2_BUCKET_NAME="Cloudflareで作成したR2バケット名"
 ```
 
 ### uvのインストール
