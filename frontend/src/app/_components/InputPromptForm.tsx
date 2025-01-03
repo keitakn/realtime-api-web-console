@@ -124,13 +124,17 @@ export function InputPromptForm() {
       setIsSpeaking(false);
     }
 
-    if (!isAudioInitialized) {
-      log.info('音声が初期化されていません。初期化を試みます。');
-      const initialized = await initializeAudio();
-      if (!initialized) {
-        log.error('音声の初期化に失敗しました');
-        return;
-      }
+    // if (!isAudioInitialized) {
+    //   log.info('音声が初期化されていません。初期化を試みます。');
+    //   const initialized = await initializeAudio();
+    //   if (!initialized) {
+    //     log.error('音声の初期化に失敗しました');
+    //     return;
+    //   }
+    // }
+
+    if (audioContextRef.current?.state === 'suspended') {
+      await audioContextRef.current?.resume();
     }
 
     try {
