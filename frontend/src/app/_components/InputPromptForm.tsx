@@ -65,6 +65,7 @@ export function InputPromptForm() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const currentFrameB64 = useRef<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const audioPlayerRef = useRef<AudioContext | null>(null);
   const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const audioUrl = useRef<string | undefined>(undefined);
@@ -81,8 +82,8 @@ export function InputPromptForm() {
     try {
       log.info('AudioContext初期化開始');
       const ctx = new AudioContext();
-      audioContextRef.current = ctx;
-      if (ctx.state === 'suspended') {
+      audioPlayerRef.current = ctx;
+      if (audioPlayerRef.current.state === 'suspended') {
         await ctx.resume();
       }
 
@@ -124,10 +125,6 @@ export function InputPromptForm() {
       setIsSpeaking(false);
     }
 
-    if (audioContextRef.current?.state === 'suspended') {
-      await audioContextRef.current?.resume();
-    }
-
     try {
       const audio = new Audio(audioUrl.current);
       currentAudio.current = audio;
@@ -141,9 +138,9 @@ export function InputPromptForm() {
       audio.autoplay = true;
 
       // AudioContextが初期化済みであることを確認
-      if (audioContextRef.current?.state === 'suspended') {
+      if (audioPlayerRef.current?.state === 'suspended') {
         log.info('AudioContextを再開');
-        await audioContextRef.current.resume();
+        await audioPlayerRef.current.resume();
       }
 
       // イベントリスナーを設定する前に音声をロード
@@ -315,11 +312,6 @@ export function InputPromptForm() {
     setIsRecording(true);
 
     try {
-      // 音声初期化を行う
-      if (!isAudioInitialized) {
-        await initializeAudio();
-      }
-
       audioContextRef.current = new AudioContext({
         sampleRate: 16000,
       });
