@@ -83,9 +83,7 @@ export function InputPromptForm() {
       log.info('AudioContext初期化開始');
       const ctx = new AudioContext();
       playAudioContextRef.current = ctx;
-      if (playAudioContextRef.current.state === 'suspended') {
-        await ctx.resume();
-      }
+      await playAudioContextRef.current.resume();
 
       // 無音のバッファを再生して再生権限を取得
       log.info('無音バッファの作成');
