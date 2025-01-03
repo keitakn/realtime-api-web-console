@@ -8,9 +8,62 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai.live import AsyncSession  # noqa: F401
 from log.logger import AppLogger
+import boto3
+from botocore.config import Config
+import uuid
+from datetime import datetime
 
 router = APIRouter()
 app_logger = AppLogger()
+
+# R2の設定
+r2 = boto3.client(
+    "s3",
+    endpoint_url=os.getenv("R2_ENDPOINT_URL"),
+    aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
+    config=Config(signature_version="s3v4"),
+    region_name="auto",
+)
+
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
+
+
+async def upload_to_r2(audio_url: str) -> str:
+    """
+    TTSから取得した音声ファイルをR2にアップロードし、署名付きURLを生成する
+    """
+    try:
+        # TTSの音声ファイルをダウンロード
+        response = requests.get(audio_url)
+        response.raise_for_status()
+
+        # 現在の日時を取得
+        now = datetime.now()
+
+        # UUIDを生成してファイルパスを構築
+        directory_uuid = str(uuid.uuid4())
+        file_key = f"anonymous-users/generated-audio-files/year={now.year:04d}/month={now.month:02d}/date={now.day:02d}/{directory_uuid}/audio.wav"
+
+        # R2にアップロード
+        r2.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=file_key,
+            Body=response.content,
+            ContentType="audio/wav",
+        )
+
+        # 署名付きURLを生成（有効期限1時間）
+        url = r2.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": R2_BUCKET_NAME, "Key": file_key},
+            ExpiresIn=3600,
+        )
+
+        return url
+    except Exception as e:
+        app_logger.logger.error(f"R2へのアップロード中にエラーが発生: {e}")
+        raise e
 
 
 class SendEmailDto(TypedDict):
@@ -342,7 +395,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                     if combined_text:
                                         tts_payload = {
                                             "script": combined_text,
-                                            "format": "mp3",
+                                            "format": "wav",
                                             "speed": "0.8",
                                         }
                                         tts_headers = {
@@ -362,11 +415,17 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             and "audioFileUrl"
                                             in tts_data["generatedVoice"]
                                         ):
-                                            audio_url = tts_data["generatedVoice"][
+                                            tts_audio_url = tts_data["generatedVoice"][
                                                 "audioFileUrl"
                                             ]
+
+                                            # R2にアップロードして署名付きURLを取得
+                                            r2_audio_url = await upload_to_r2(
+                                                tts_audio_url
+                                            )
+
                                             await websocket.send_text(
-                                                json.dumps({"audio": audio_url})
+                                                json.dumps({"audio": r2_audio_url})
                                             )
 
                                         combined_text = ""
