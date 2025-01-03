@@ -124,15 +124,6 @@ export function InputPromptForm() {
       setIsSpeaking(false);
     }
 
-    // if (!isAudioInitialized) {
-    //   log.info('音声が初期化されていません。初期化を試みます。');
-    //   const initialized = await initializeAudio();
-    //   if (!initialized) {
-    //     log.error('音声の初期化に失敗しました');
-    //     return;
-    //   }
-    // }
-
     if (audioContextRef.current?.state === 'suspended') {
       await audioContextRef.current?.resume();
     }
@@ -256,7 +247,7 @@ export function InputPromptForm() {
     };
 
     ws.onerror = (event) => {
-      log.error(`websocket error: ${event}`);
+      console.error(event);
     };
 
     return () => {
@@ -324,6 +315,11 @@ export function InputPromptForm() {
     setIsRecording(true);
 
     try {
+      // 音声初期化を行う
+      if (!isAudioInitialized) {
+        await initializeAudio();
+      }
+
       audioContextRef.current = new AudioContext({
         sampleRate: 16000,
       });
