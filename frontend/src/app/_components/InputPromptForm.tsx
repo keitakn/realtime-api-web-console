@@ -64,8 +64,8 @@ export function InputPromptForm() {
   const [isRecording, setIsRecording] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const currentFrameB64 = useRef<string | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioPlayerRef = useRef<AudioContext | null>(null);
+  const recordingAudioContextRef = useRef<AudioContext | null>(null);
+  const playAudioContextRef = useRef<AudioContext | null>(null);
   const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const audioUrl = useRef<string | undefined>(undefined);
@@ -82,8 +82,8 @@ export function InputPromptForm() {
     try {
       log.info('AudioContext初期化開始');
       const ctx = new AudioContext();
-      audioPlayerRef.current = ctx;
-      if (audioPlayerRef.current.state === 'suspended') {
+      playAudioContextRef.current = ctx;
+      if (playAudioContextRef.current.state === 'suspended') {
         await ctx.resume();
       }
 
@@ -110,7 +110,7 @@ export function InputPromptForm() {
   // 音声再生関数を修正
   const playAudio = async () => {
     log.info('playAudio関数が呼び出されました');
-    log.info(`現在の状態 - audioUrl存在: ${!!audioUrl.current}, isAudioInitialized: ${isAudioInitialized}, audioContext状態: ${audioContextRef.current?.state}`);
+    log.info(`現在の状態 - audioUrl存在: ${!!audioUrl.current}, isAudioInitialized: ${isAudioInitialized}, audioContext状態: ${playAudioContextRef.current?.state}`);
 
     if (!audioUrl.current) {
       log.warn('audioUrlが設定されていません');
@@ -119,7 +119,6 @@ export function InputPromptForm() {
 
     // 新しい音声が送信された場合は既存の音声を停止
     if (currentAudio.current) {
-      log.info('既存の音声を停止');
       currentAudio.current.pause();
       currentAudio.current = null;
       setIsSpeaking(false);
@@ -129,63 +128,20 @@ export function InputPromptForm() {
       const audio = new Audio(audioUrl.current);
       currentAudio.current = audio;
 
-      // デバッグ用：音声ファイルの状態を確認
-      log.info(`音声の状態 - readyState: ${audio.readyState}, networkState: ${audio.networkState}`);
-
-      // iOS対応の設定を追加
+      // iOS対応の設定
       audio.playsInline = true;
       audio.webkitPlaysInline = true;
-      audio.autoplay = true;
 
-      // AudioContextが初期化済みであることを確認
-      if (audioPlayerRef.current?.state === 'suspended') {
-        log.info('AudioContextを再開');
-        await audioPlayerRef.current.resume();
-      }
-
-      // イベントリスナーを設定する前に音声をロード
-      await new Promise((resolve, reject) => {
-        audio.addEventListener('canplaythrough', resolve, { once: true });
-        audio.addEventListener('error', reject, { once: true });
-        audio.load();
-      });
-
-      log.info('音声再生の準備完了');
       setIsSpeaking(true);
 
-      // イベントリスナーの設定
-      const addListener = (event: string, handler: () => void) => {
-        audio.addEventListener(event, handler);
-        log.info(`${event}イベントリスナーを設定しました`);
-      };
-
-      addListener('loadstart', () => {
-        log.info('音声データのロード開始');
-      });
-
-      addListener('canplay', () => {
-        log.info('音声再生可能な状態');
-      });
-
-      addListener('playing', () => {
-        log.info('音声再生中');
-      });
-
-      addListener('ended', () => {
-        log.info('音声再生完了');
+      // 音声再生完了時の処理
+      audio.onended = () => {
         currentAudio.current = null;
         audioUrl.current = undefined;
         setIsSpeaking(false);
-      });
+      };
 
-      audio.addEventListener('error', (e) => {
-        const target = e.currentTarget as HTMLAudioElement;
-        log.error(`音声ロードエラー: ${target.error?.message || '不明なエラー'}, コード: ${target.error?.code}`);
-      });
-
-      log.info('音声再生実行');
       await audio.play();
-      log.info('音声再生開始成功');
     }
     catch (error) {
       log.error(`音声再生エラー: ${error}`);
@@ -210,7 +166,7 @@ export function InputPromptForm() {
         log.info('受信したWebSocketメッセージ:', messageData);
         const response = new Response(messageData);
 
-        if (response.text) {
+        if (response.text != null && response.text) {
           newResponseMessage += response.text;
           setStreamingMessage(newResponseMessage);
         }
@@ -312,7 +268,7 @@ export function InputPromptForm() {
     setIsRecording(true);
 
     try {
-      audioContextRef.current = new AudioContext({
+      recordingAudioContextRef.current = new AudioContext({
         sampleRate: 16000,
       });
 
@@ -323,10 +279,10 @@ export function InputPromptForm() {
         },
       });
 
-      await audioContextRef.current.audioWorklet.addModule('/audio-processing.worklet.js');
+      await recordingAudioContextRef.current.audioWorklet.addModule('/audio-processing.worklet.js');
 
-      sourceRef.current = audioContextRef.current.createMediaStreamSource(audioStream);
-      audioWorkletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
+      sourceRef.current = recordingAudioContextRef.current.createMediaStreamSource(audioStream);
+      audioWorkletNodeRef.current = new AudioWorkletNode(recordingAudioContextRef.current, 'audio-processor');
 
       audioWorkletNodeRef.current.port.onmessage = (event) => {
         if (event.data.event === 'chunk') {
@@ -355,7 +311,7 @@ export function InputPromptForm() {
       };
 
       sourceRef.current.connect(audioWorkletNodeRef.current);
-      audioWorkletNodeRef.current.connect(audioContextRef.current.destination);
+      audioWorkletNodeRef.current.connect(recordingAudioContextRef.current.destination);
     }
     catch (error) {
       log.error(`録音の開始中にエラーが発生しました: ${error}`);
@@ -376,9 +332,9 @@ export function InputPromptForm() {
       sourceRef.current = null;
     }
 
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
+    if (recordingAudioContextRef.current) {
+      recordingAudioContextRef.current.close();
+      recordingAudioContextRef.current = null;
     }
   };
 
