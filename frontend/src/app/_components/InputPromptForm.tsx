@@ -72,6 +72,21 @@ export function InputPromptForm() {
   const currentAudio = useRef<AudioBufferSourceNode | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
 
+  // 現在再生中の音声を停止する関数
+  const stopCurrentAudio = useCallback(() => {
+    if (currentAudio.current) {
+      try {
+        currentAudio.current.stop();
+      }
+      catch (error) {
+        // すでに停止している場合などのエラーは無視
+        console.error(error);
+      }
+      currentAudio.current = null;
+      setIsSpeaking(false);
+    }
+  }, []);
+
   // 音声再生の初期化関数を修正
   const initializeAudio = useCallback(async () => {
     if (isAudioInitialized) {
@@ -116,17 +131,7 @@ export function InputPromptForm() {
     }
 
     // 新しい音声が送信された場合は既存の音声を停止
-    if (currentAudio.current) {
-      try {
-        currentAudio.current.stop();
-      }
-      catch (error) {
-        // すでに停止している場合などのエラーは無視
-        console.error(error);
-      }
-      currentAudio.current = null;
-      setIsSpeaking(false);
-    }
+    stopCurrentAudio();
 
     try {
       if (!playAudioContextRef.current) {
@@ -134,19 +139,15 @@ export function InputPromptForm() {
         return;
       }
 
-      // 音声データを取得
       const response = await fetch(audioUrl.current);
       const arrayBuffer = await response.arrayBuffer();
 
-      // AudioBufferを作成
       const audioBuffer = await playAudioContextRef.current.decodeAudioData(arrayBuffer);
 
-      // AudioBufferSourceNodeを作成
       const source = playAudioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(playAudioContextRef.current.destination);
 
-      // 現在のソースを保持
       currentAudio.current = source;
 
       setIsSpeaking(true);
@@ -167,7 +168,6 @@ export function InputPromptForm() {
     }
   };
 
-  // WebSocket接続を確立
   useEffect(() => {
     const ws = new WebSocket(String(process.env.NEXT_PUBLIC_VIDEO_CHAT_API_SERVER_URL));
     webSocketRef.current = ws;
@@ -185,18 +185,7 @@ export function InputPromptForm() {
 
         // ユーザーからの新しい入力があった場合は再生中の音声を停止
         if (messageData.text || messageData.audio) {
-          // 現在再生中のAudioBufferSourceNodeを停止
-          if (currentAudio.current) {
-            try {
-              currentAudio.current.stop();
-            }
-            catch (error) {
-              // すでに停止している場合などのエラーは無視
-              console.error(error);
-            }
-            currentAudio.current = null;
-            setIsSpeaking(false);
-          }
+          stopCurrentAudio();
         }
 
         const response = new Response(messageData);
@@ -248,6 +237,7 @@ export function InputPromptForm() {
     return () => {
       ws.close();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Webカメラの初期化
@@ -276,6 +266,7 @@ export function InputPromptForm() {
         stream.getTracks().forEach(track => track.stop());
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 画像のキャプチャ
@@ -301,11 +292,8 @@ export function InputPromptForm() {
       return;
 
     // ユーザーが話をしている場合はAssistantの返答音声再生を停止する
-    if (currentAudio.current) {
-      currentAudio.current.stop();
-      currentAudio.current = null;
-      audioUrl.current = undefined;
-    }
+    stopCurrentAudio();
+    audioUrl.current = undefined;
 
     setIsRecording(true);
 
@@ -384,21 +372,12 @@ export function InputPromptForm() {
   useEffect(() => {
     return () => {
       stopRecording();
-      if (currentAudio.current) {
-        try {
-          currentAudio.current.stop();
-        }
-        catch (error) {
-          // すでに停止している場合などのエラーは無視
-          console.error(error);
-        }
-        currentAudio.current = null;
-      }
+      stopCurrentAudio();
       if (playAudioContextRef.current) {
         playAudioContextRef.current.close();
       }
     };
-  }, []);
+  }, [stopCurrentAudio]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -406,17 +385,7 @@ export function InputPromptForm() {
     event.preventDefault();
 
     // 送信時に再生中の音声を停止
-    if (currentAudio.current) {
-      try {
-        currentAudio.current.stop();
-      }
-      catch (error) {
-        // すでに停止している場合などのエラーは無視
-        console.error(error);
-      }
-      currentAudio.current = null;
-      setIsSpeaking(false);
-    }
+    stopCurrentAudio();
 
     if (textareaRef.current?.value != null && textareaRef.current?.value !== '') {
       setPrompt('');

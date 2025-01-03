@@ -8,6 +8,7 @@ type Props = TextAreaProps & {
   ref?: RefObject<HTMLTextAreaElement | null>;
 };
 
+// eslint-disable-next-line react/no-unstable-default-props
 export function PromptInput({ ref, classNames = {}, ...props }: Props) {
   return (
     <Textarea
