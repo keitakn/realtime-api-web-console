@@ -115,7 +115,8 @@ export function InputPromptForm() {
       return true;
     }
     catch (error) {
-      log.error(`音声再生の初期化に失敗しました: ${error}`);
+      log.error(`音声再生の初期化に失敗しました`);
+      console.error(error);
       return false;
     }
   }, [isAudioInitialized]);
@@ -163,7 +164,8 @@ export function InputPromptForm() {
       source.start(0);
     }
     catch (error) {
-      log.error(`音声再生エラー: ${error}`);
+      log.error(`音声再生エラー`);
+      console.error(error);
       setIsSpeaking(false);
     }
   };
@@ -222,7 +224,8 @@ export function InputPromptForm() {
         }
       }
       catch (error) {
-        log.error(`メッセージの処理中にエラーが発生しました: ${error}`);
+        log.error(`メッセージの処理中にエラーが発生しました`);
+        console.error(error);
       }
     };
 
@@ -256,7 +259,8 @@ export function InputPromptForm() {
         }
       }
       catch (error) {
-        log.error(`Webカメラへのアクセスエラー: ${error}`);
+        log.error(`Webカメラへのアクセスエラー`);
+        console.error(error);
       }
     };
 
@@ -344,7 +348,8 @@ export function InputPromptForm() {
       audioWorkletNodeRef.current.connect(recordingAudioContextRef.current.destination);
     }
     catch (error) {
-      log.error(`録音の開始中にエラーが発生しました: ${error}`);
+      log.error(`録音の開始中にエラーが発生しました`);
+      console.error(error);
       setIsRecording(false);
     }
   };
