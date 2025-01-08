@@ -56,6 +56,9 @@ export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [currentDeviceId, setCurrentDeviceId] = useState<string>('');
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -243,35 +246,160 @@ export function InputPromptForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Webカメラの初期化
-  useEffect(() => {
-    const initializeWebcam = async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { max: 640 },
-            height: { max: 480 },
-          },
-        });
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+  // デバイスの一覧を取得
+  const getVideoDevices = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevs = devices.filter(device => device.kind === 'videoinput');
+      setVideoDevices((prev) => {
+        // デバイスリストに変更がない場合は更新しない
+        if (JSON.stringify(prev) === JSON.stringify(videoDevs)) {
+          return prev;
         }
+        return videoDevs;
+      });
+    }
+    catch (error) {
+      log.error('カメラデバイスの取得に失敗しました');
+      console.error(error);
+    }
+  }, []);
+
+  // 初期デバイスの設定
+  useEffect(() => {
+    if (videoDevices.length > 0 && !currentDeviceId && !isInitializing) {
+      const defaultDevice = videoDevices[0].deviceId;
+      log.info(`デフォルトのカメラを設定: ${defaultDevice}`);
+      setCurrentDeviceId(defaultDevice);
+    }
+  }, [videoDevices, currentDeviceId, isInitializing]);
+
+  // カメラの初期化
+  const initializeWebcam = useCallback(async () => {
+    if (isInitializing || !currentDeviceId)
+      return;
+
+    try {
+      setIsInitializing(true);
+      log.info(`カメラを初期化します。デバイスID: ${currentDeviceId}`);
+
+      // 既存のストリームを停止
+      if (stream) {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
+        setStream(null);
       }
-      catch (error) {
-        log.error(`Webカメラへのアクセスエラー`);
-        console.error(error);
+
+      // videoRef.currentのsrcObjectをnullに設定
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
+
+      const constraints = {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          deviceId: { exact: currentDeviceId },
+        },
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      if (!mediaStream.active) {
+        throw new Error('メディアストリームが非アクティブです');
+      }
+
+      // DOMの準備ができているか確認
+      if (!videoRef.current) {
+        throw new Error('ビデオ要素が見つかりません');
+      }
+
+      // ストリームを設定
+      setStream(mediaStream);
+      videoRef.current.srcObject = mediaStream;
+
+      // 再生の開始
+      await new Promise((resolve) => {
+        if (!videoRef.current)
+          return;
+        videoRef.current.onloadedmetadata = () => {
+          if (!videoRef.current)
+            return;
+          videoRef.current.play()
+            .then(() => {
+              log.info('ビデオの再生を開始しました');
+              resolve(true);
+            })
+            .catch((error) => {
+              log.error('ビデオの再生に失敗しました', error);
+              resolve(false);
+            });
+        };
+      });
+
+      log.info('カメラの初期化が完了しました');
+    }
+    catch (error) {
+      log.error('Webカメラへのアクセスエラー');
+      console.error(error);
+      // エラー発生時は状態をクリア
+      setStream(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    }
+    finally {
+      setIsInitializing(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDeviceId, stream]);
+
+  // 初期デバイス一覧の取得
+  useEffect(() => {
+    getVideoDevices();
+  }, [getVideoDevices]);
+
+  // デバイス変更の監視
+  useEffect(() => {
+    const handleDeviceChange = () => {
+      getVideoDevices();
     };
 
-    initializeWebcam();
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+    };
+  }, [getVideoDevices]);
+
+  // カメラの初期化（currentDeviceId変更時のみ）
+  useEffect(() => {
+    if (currentDeviceId && !isInitializing) {
+      initializeWebcam();
+    }
+  }, [currentDeviceId, initializeWebcam, isInitializing]);
+
+  // クリーンアップ
+  useEffect(() => {
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stream]);
+
+  // カメラ切り替え関数
+  const switchCamera = useCallback(() => {
+    if (isInitializing || videoDevices.length <= 1)
+      return;
+
+    const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
+    const nextIndex = (currentIndex + 1) % videoDevices.length;
+    const nextDeviceId = videoDevices[nextIndex].deviceId;
+
+    log.info(`カメラを切り替えます: ${currentDeviceId} -> ${nextDeviceId}`);
+    setCurrentDeviceId(nextDeviceId);
+  }, [currentDeviceId, videoDevices, isInitializing]);
 
   // 画像のキャプチャ
   useEffect(() => {
@@ -427,12 +555,30 @@ export function InputPromptForm() {
         <div className="flex flex-col items-center space-y-4">
           {/* ビデオとキャラクターを横並びに */}
           <div className="flex items-center justify-center gap-8">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="h-[240px] w-[320px] rounded-2xl bg-black"
-            />
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="h-[240px] w-[320px] rounded-2xl bg-black"
+              />
+              {videoDevices.length > 1 && (
+                <Button
+                  isIconOnly
+                  radius="full"
+                  size="sm"
+                  variant="solid"
+                  className="absolute bottom-2 right-2 bg-white/80"
+                  onPress={switchCamera}
+                >
+                  <Icon
+                    className="text-default-500"
+                    icon="solar:camera-rotate-linear"
+                    width={20}
+                  />
+                </Button>
+              )}
+            </div>
 
             <div className="flex flex-col items-center">
               <Image
