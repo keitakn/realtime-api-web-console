@@ -10,6 +10,7 @@ import {
 } from '@nextui-org/react';
 import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useCallback, useEffect, useRef, useState } from 'react';
+import { Camera } from './Camera';
 import { PromptInput } from './PromptInput';
 
 // HTMLAudioElementの型を拡張
@@ -243,36 +244,6 @@ export function InputPromptForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Webカメラの初期化
-  useEffect(() => {
-    const initializeWebcam = async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { max: 640 },
-            height: { max: 480 },
-          },
-        });
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-      }
-      catch (error) {
-        log.error(`Webカメラへのアクセスエラー`);
-        console.error(error);
-      }
-    };
-
-    initializeWebcam();
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // 画像のキャプチャ
   useEffect(() => {
     const captureInterval = setInterval(() => {
@@ -427,12 +398,7 @@ export function InputPromptForm() {
         <div className="flex flex-col items-center space-y-4">
           {/* ビデオとキャラクターを横並びに */}
           <div className="flex items-center justify-center gap-8">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="h-[240px] w-[320px] rounded-2xl bg-black"
-            />
+            <Camera onStreamChange={setStream} videoRef={videoRef} />
 
             <div className="flex flex-col items-center">
               <Image
