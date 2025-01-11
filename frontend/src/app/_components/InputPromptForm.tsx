@@ -398,7 +398,7 @@ export function InputPromptForm() {
         <div className="flex flex-col items-center space-y-4">
           {/* ビデオとキャラクターを横並びに */}
           <div className="flex items-center justify-center gap-8">
-            <Camera onStreamChange={setStream} />
+            <Camera onStreamChange={setStream} videoRef={videoRef} />
 
             <div className="flex flex-col items-center">
               <Image

@@ -3,10 +3,12 @@ import { useVideoDeviceList } from './_hooks/useVideoDeviceList';
 
 type CameraProps = {
   onStreamChange?: (stream: MediaStream | null) => void;
+  videoRef?: React.RefObject<HTMLVideoElement | null>;
 };
 
-export function Camera({ onStreamChange }: CameraProps) {
-  const refVideo = useRef<HTMLVideoElement>(null);
+export function Camera({ onStreamChange, videoRef }: CameraProps) {
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+  const actualVideoRef = videoRef || internalVideoRef;
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const { devices } = useVideoDeviceList();
 
@@ -17,8 +19,8 @@ export function Camera({ onStreamChange }: CameraProps) {
         : { video: { facingMode: 'user' } };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (refVideo?.current) {
-        refVideo.current.srcObject = stream;
+      if (actualVideoRef?.current) {
+        actualVideoRef.current.srcObject = stream;
         onStreamChange?.(stream);
       }
     }
@@ -49,8 +51,8 @@ export function Camera({ onStreamChange }: CameraProps) {
       const device = devices.find(v => v.label === selectedDevice);
       if (device) {
         // 既存のストリームをクリーンアップ
-        if (refVideo?.current?.srcObject) {
-          const stream = refVideo.current.srcObject as MediaStream;
+        if (actualVideoRef?.current?.srcObject) {
+          const stream = actualVideoRef.current.srcObject as MediaStream;
           stream.getTracks().forEach(track => track.stop());
         }
         initializeCamera(device.deviceId);
@@ -62,19 +64,19 @@ export function Camera({ onStreamChange }: CameraProps) {
   // クリーンアップ
   useEffect(() => {
     return () => {
-      if (refVideo?.current?.srcObject) {
+      if (actualVideoRef?.current?.srcObject) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        const stream = refVideo.current.srcObject as MediaStream;
+        const stream = actualVideoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
         onStreamChange?.(null);
       }
     };
-  }, [onStreamChange]);
+  }, [onStreamChange, actualVideoRef]);
 
   return (
     <div>
       <video
-        ref={refVideo}
+        ref={actualVideoRef}
         autoPlay
         muted
         playsInline
