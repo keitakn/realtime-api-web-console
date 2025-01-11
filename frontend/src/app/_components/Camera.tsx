@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useVideoDeviceList } from './_hooks/useVideoDeviceList';
 
-type CameraProps = {
+type Props = {
   onStreamChange?: (stream: MediaStream | null) => void;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
 };
 
-export function Camera({ onStreamChange, videoRef }: CameraProps) {
+export function Camera({ onStreamChange, videoRef }: Props) {
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const actualVideoRef = videoRef || internalVideoRef;
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
