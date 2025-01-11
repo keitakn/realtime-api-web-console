@@ -242,20 +242,22 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                             data = json.loads(message)
 
                             if "input_text" in data:
-                                await session.send(data["input_text"], end_of_turn=True)
+                                await session.send(
+                                    input=data["input_text"], end_of_turn=True
+                                )
 
                             if "realtime_input" in data:
                                 for chunk in data["realtime_input"]["media_chunks"]:
                                     if chunk["mime_type"] == "audio/pcm":
                                         await session.send(
-                                            {
+                                            input={
                                                 "mime_type": "audio/pcm",
                                                 "data": chunk["data"],
                                             }
                                         )
                                     elif chunk["mime_type"] == "image/jpeg":
                                         await session.send(
-                                            {
+                                            input={
                                                 "mime_type": "image/jpeg",
                                                 "data": chunk["data"],
                                             }
@@ -310,7 +312,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             # `function_call.id` は function-call-xxxxxxxxxxxxxxxxxxxx のような値が返ってくる
                                             # 関数の結果をモデルに送信
                                             await session.send(
-                                                {
+                                                input={
                                                     "id": function_call.id,
                                                     "name": "send_email",
                                                     "response": result,
@@ -334,7 +336,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             )
 
                                             await session.send(
-                                                {
+                                                input={
                                                     "id": function_call.id,
                                                     "name": "create_google_calendar_event",
                                                     "response": result,
