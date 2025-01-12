@@ -298,10 +298,27 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                         function_call
                                     ) in response.tool_call.function_calls:
                                         if function_call.name == "send_email":
+                                            # 必須フィールドの存在確認
+                                            dto_args = function_call.args["dto"]
+                                            if not all(
+                                                key in dto_args
+                                                for key in [
+                                                    "to_email",
+                                                    "subject",
+                                                    "body",
+                                                ]
+                                            ):
+                                                app_logger.logger.error(
+                                                    "SendEmailDtoの必須フィールドが不足しています"
+                                                )
+                                                continue
+
                                             # 関数を実行
                                             result = await send_email(
                                                 SendEmailDto(
-                                                    **function_call.args["dto"]
+                                                    to_email=dto_args["to_email"],
+                                                    subject=dto_args["subject"],
+                                                    body=dto_args["body"],
                                                 )
                                             )
 
@@ -324,10 +341,22 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                                             function_call.name
                                             == "create_google_calendar_event"
                                         ):
+                                            # 必須フィールドの存在確認
+                                            dto_args = function_call.args["dto"]
+                                            if not all(
+                                                key in dto_args
+                                                for key in ["email", "title"]
+                                            ):
+                                                app_logger.logger.error(
+                                                    "CreateGoogleCalendarEventDtoの必須フィールドが不足しています"
+                                                )
+                                                continue
+
                                             # 関数を実行
                                             result = await create_google_calendar_event(
                                                 CreateGoogleCalendarEventDto(
-                                                    **function_call.args["dto"]
+                                                    email=dto_args["email"],
+                                                    title=dto_args["title"],
                                                 )
                                             )
 
