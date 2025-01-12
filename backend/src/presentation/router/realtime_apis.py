@@ -54,7 +54,7 @@ async def upload_to_r2(audio_url: str) -> str:
         )
 
         # 署名付きURLを生成（有効期限1時間）
-        url = r2.generate_presigned_url(
+        url: str = r2.generate_presigned_url(
             "get_object",
             Params={"Bucket": R2_BUCKET_NAME, "Key": file_key},
             ExpiresIn=3600,
@@ -233,7 +233,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
         async with client.aio.live.connect(model=MODEL, config=config) as session:  # type: AsyncSession
             app_logger.logger.info("Gemini APIに接続しました")
 
-            async def send_to_gemini():
+            async def send_to_gemini() -> None:
                 """クライアントからのメッセージをGemini APIに送信"""
                 try:
                     while True:
@@ -278,7 +278,7 @@ async def video_chat_websocket_endpoint(websocket: WebSocket) -> None:
                 finally:
                     app_logger.logger.info("send_to_geminiを終了しました")
 
-            async def receive_from_gemini():
+            async def receive_from_gemini() -> None:
                 """Gemini APIからのレスポンスを受信してクライアントに転送"""
                 try:
                     while True:
