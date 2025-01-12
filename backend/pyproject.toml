@@ -8,6 +8,7 @@ dependencies = [
     "boto3>=1.35.91",
     "fastapi>=0.115.6",
     "google-genai>=0.4.0",
+    "types-requests>=2.32.0.20241016",
     "uvicorn>=0.32.1",
 ]
 
