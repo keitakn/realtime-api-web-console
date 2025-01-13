@@ -3,7 +3,7 @@
 import { Icon } from '@iconify/react';
 import { Avatar, Badge, Button, cn, Link, Tooltip } from '@nextui-org/react';
 import { useClipboard } from '@nextui-org/use-clipboard';
-import { type HTMLAttributes, type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type HTMLAttributes, type ReactNode, type RefObject, useCallback, useRef, useState } from 'react';
 
 type Props = HTMLAttributes<HTMLDivElement> & {
   avatar?: string;
@@ -13,20 +13,17 @@ type Props = HTMLAttributes<HTMLDivElement> & {
   status?: 'success' | 'failed';
   attempts?: number;
   messageClassName?: string;
-  audioUrl?: string;
   onAttemptChange?: (attempt: number) => void;
   onMessageCopy?: (content: string | string[]) => void;
   onFeedback?: (feedback: 'like' | 'dislike') => void;
   onAttemptFeedback?: (feedback: 'like' | 'dislike' | 'same') => void;
 };
 
-export function MessageCard({ ref, avatar, message, showFeedback, attempts = 1, currentAttempt = 1, status, onMessageCopy, onAttemptChange, onFeedback, onAttemptFeedback, className, messageClassName, audioUrl, ...props }: Props & { ref?: RefObject<HTMLDivElement> }) {
+export function MessageCard({ ref, avatar, message, showFeedback, attempts = 1, currentAttempt = 1, status, onMessageCopy, onAttemptChange, onFeedback, onAttemptFeedback, className, messageClassName, ...props }: Props & { ref?: RefObject<HTMLDivElement> }) {
   const [feedback, setFeedback] = useState<'like' | 'dislike'>();
   const [attemptFeedback, setAttemptFeedback] = useState<'like' | 'dislike' | 'same'>();
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const messageRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { copied, copy } = useClipboard();
 
@@ -86,55 +83,6 @@ export function MessageCard({ ref, avatar, message, showFeedback, attempts = 1, 
     [onAttemptFeedback],
   );
 
-  const handlePlayAudio = async () => {
-    if (!audioUrl)
-      return;
-
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-        return;
-      }
-    }
-
-    try {
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      // iOS対応の設定を追加
-      audio.playsInline = true;
-      audio.webkitPlaysInline = true;
-
-      audio.addEventListener('ended', () => {
-        setIsPlaying(false);
-        audioRef.current = null;
-      });
-
-      audio.addEventListener('error', () => {
-        setIsPlaying(false);
-        audioRef.current = null;
-      });
-
-      await audio.play();
-      setIsPlaying(true);
-    }
-    catch (error) {
-      console.error('音声再生エラー:', error);
-      setIsPlaying(false);
-    }
-  };
-
-  // コンポーネントのアンマウント時にクリーンアップ
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
   return (
     <div {...props} ref={ref} className={cn('flex gap-3', className)}>
       <div className="relative flex-none">
@@ -162,20 +110,6 @@ export function MessageCard({ ref, avatar, message, showFeedback, attempts = 1, 
           </div>
           {showFeedback && !hasFailed && (
             <div className="absolute right-2 top-2 flex rounded-full bg-content2 shadow-small">
-              {audioUrl && (
-                <Button
-                  isIconOnly
-                  radius="full"
-                  size="sm"
-                  variant="light"
-                  onPress={handlePlayAudio}
-                >
-                  <Icon
-                    className="text-lg text-default-600"
-                    icon={isPlaying ? 'solar:pause-circle-linear' : 'solar:play-circle-linear'}
-                  />
-                </Button>
-              )}
               <Button isIconOnly radius="full" size="sm" variant="light" onPress={handleCopy}>
                 {copied
                   ? (
