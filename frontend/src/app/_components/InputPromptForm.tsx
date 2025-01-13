@@ -48,10 +48,9 @@ class Response {
 type Message = {
   role: 'user' | 'assistant';
   message: string;
-  audioUrl?: string;
 };
 
-const log = logger.child({ module: 'src/app/_components/InputPromptForm.tsx' });
+const log = logger.child({ module: 'InputPromptForm' });
 
 export function InputPromptForm() {
   const [prompt, setPrompt] = useState<string>('');
@@ -141,8 +140,13 @@ export function InputPromptForm() {
         return;
       }
 
-      const response = await fetch(audioUrl.current);
-      const arrayBuffer = await response.arrayBuffer();
+      // Base64データをデコードしてArrayBufferに変換
+      const binaryString = atob(audioUrl.current);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const arrayBuffer = bytes.buffer;
 
       const audioBuffer = await playAudioContextRef.current.decodeAudioData(arrayBuffer);
 
@@ -203,7 +207,6 @@ export function InputPromptForm() {
           setMessages(prev => [...prev, {
             role: 'assistant',
             message: lastAssistantMessage,
-            audioUrl: audioUrl.current || undefined,
           }]);
           newResponseMessage = '';
           setStreamingMessage('');
@@ -436,7 +439,6 @@ export function InputPromptForm() {
               avatar="/omochi.png"
               message={message.message}
               showFeedback
-              audioUrl={message.audioUrl}
             />
           );
         })}
