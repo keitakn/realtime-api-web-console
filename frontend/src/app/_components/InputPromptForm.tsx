@@ -10,6 +10,7 @@ import {
 } from '@nextui-org/react';
 import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useCallback, useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 import { Camera } from './Camera';
 import { PromptInput } from './PromptInput';
 
@@ -22,27 +23,19 @@ declare global {
   }
 }
 
-// Responseクラスの実装
-class Response {
-  text: string | null;
-  audioData: string | null;
-  endOfTurn: boolean | null;
+// Responseの型定義とバリデーションスキーマ
+const AssistantResponseSchema = z.object({
+  text: z.string().optional(),
+  audio: z.string().optional(),
+  endOfTurn: z.boolean().optional(),
+});
 
-  constructor(data: any) {
-    this.text = null;
-    this.audioData = null;
-    this.endOfTurn = null;
+type AssistantResponse = z.infer<typeof AssistantResponseSchema>;
 
-    if (data.text) {
-      this.text = data.text;
-    }
-    if (data.audio) {
-      this.audioData = data.audio;
-    }
-    if (data.endOfTurn) {
-      this.endOfTurn = data.endOfTurn;
-    }
-  }
+function isAssistantResponse(value: unknown): value is AssistantResponse {
+  AssistantResponseSchema.parse(value);
+
+  return true;
 }
 
 type Message = {
@@ -187,22 +180,25 @@ export function InputPromptForm() {
 
     ws.onmessage = async (event) => {
       try {
-        const messageData = JSON.parse(event.data);
-        log.info('受信したWebSocketメッセージ:', messageData);
+        const assistantResponse = JSON.parse(event.data);
+        log.info('受信したWebSocketメッセージ:', assistantResponse);
+
+        if (!isAssistantResponse(assistantResponse)) {
+          log.error('レスポンスが意図した形ではありません:', assistantResponse);
+          return;
+        }
 
         // ユーザーからの新しい入力があった場合は再生中の音声を停止
-        if (messageData.text || messageData.audio) {
+        if (assistantResponse.text || assistantResponse.audio) {
           stopCurrentAudio();
         }
 
-        const response = new Response(messageData);
-
-        if (response.text != null && response.text) {
-          newResponseMessage += response.text;
+        if (assistantResponse.text != null && assistantResponse.text) {
+          newResponseMessage += assistantResponse.text;
           setStreamingMessage(newResponseMessage);
         }
 
-        if (response.endOfTurn === true) {
+        if (assistantResponse.endOfTurn === true) {
           const lastAssistantMessage = newResponseMessage;
           setMessages(prev => [...prev, {
             role: 'assistant',
@@ -212,9 +208,9 @@ export function InputPromptForm() {
           setStreamingMessage('');
         }
 
-        if (response.audioData) {
-          log.info('音声データを受信:', response.audioData.substring(0, 50));
-          audioUrl.current = response.audioData;
+        if (assistantResponse.audio) {
+          log.info('音声データを受信:', assistantResponse.audio.substring(0, 50));
+          audioUrl.current = assistantResponse.audio;
           log.info('音声URL設定:', audioUrl.current?.substring(0, 50));
 
           // 音声初期化が必要な場合は初期化を行う
