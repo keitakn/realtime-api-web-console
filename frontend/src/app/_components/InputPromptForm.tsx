@@ -56,7 +56,7 @@ export function InputPromptForm() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const currentFrameB64 = useRef<string | null>(null);
+  const base64CurrentFrame = useRef<string | null>(null);
   const recordingAudioContextRef = useRef<AudioContext | null>(null);
   const playAudioContextRef = useRef<AudioContext | null>(null);
   const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
@@ -253,7 +253,7 @@ export function InputPromptForm() {
           canvasRef.current.height = videoRef.current.videoHeight;
           context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
           const imageData = canvasRef.current.toDataURL('image/jpeg').split(',')[1].trim();
-          currentFrameB64.current = imageData;
+          base64CurrentFrame.current = imageData;
         }
       }
     }, 3000);
@@ -294,7 +294,7 @@ export function InputPromptForm() {
             String.fromCharCode(...new Uint8Array(event.data.data.int16arrayBuffer)),
           );
 
-          if (webSocketRef.current && currentFrameB64.current) {
+          if (webSocketRef.current && base64CurrentFrame.current) {
             const payload = {
               realtime_input: {
                 media_chunks: [
@@ -304,7 +304,7 @@ export function InputPromptForm() {
                   },
                   {
                     mime_type: 'image/jpeg',
-                    data: currentFrameB64.current,
+                    data: base64CurrentFrame.current,
                   },
                 ],
               },
