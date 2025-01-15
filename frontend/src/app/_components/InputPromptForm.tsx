@@ -294,17 +294,13 @@ export function InputPromptForm() {
             String.fromCharCode(...new Uint8Array(event.data.data.int16arrayBuffer)),
           );
 
-          if (webSocketRef.current && base64CurrentFrame.current) {
+          if (webSocketRef.current) {
             const payload = {
               realtime_input: {
                 media_chunks: [
                   {
                     mime_type: 'audio/pcm',
                     data: base64,
-                  },
-                  {
-                    mime_type: 'image/jpeg',
-                    data: base64CurrentFrame.current,
                   },
                 ],
               },

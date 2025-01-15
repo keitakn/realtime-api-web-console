@@ -1,3 +1,4 @@
+import { Alert } from '@nextui-org/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useVideoDeviceList } from './_hooks/useVideoDeviceList';
 
@@ -75,6 +76,7 @@ export function Camera({ onStreamChange, videoRef }: Props) {
 
   return (
     <div>
+      <Alert color="warning" title="ビデオ画像送信に問題が発生しています" description="現在AI Assistantはカメラの画像を認識出来ません" />
       <video
         ref={actualVideoRef}
         autoPlay
