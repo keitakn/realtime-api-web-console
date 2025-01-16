@@ -296,10 +296,10 @@ export function InputPromptForm() {
 
           if (webSocketRef.current) {
             const payload = {
-              realtime_input: {
-                media_chunks: [
+              realtimeInput: {
+                mediaChunks: [
                   {
-                    mime_type: 'audio/pcm',
+                    mimeType: 'audio/pcm',
                     data: base64,
                   },
                 ],
@@ -362,10 +362,10 @@ export function InputPromptForm() {
       setPrompt('');
       if (webSocketRef.current) {
         const payload = {
-          input_text: textareaRef.current?.value,
+          inputText: textareaRef.current?.value,
         };
         webSocketRef.current.send(JSON.stringify(payload));
-        setMessages(prev => [...prev, { role: 'user', message: payload.input_text }]);
+        setMessages(prev => [...prev, { role: 'user', message: payload.inputText }]);
       }
     }
   };
