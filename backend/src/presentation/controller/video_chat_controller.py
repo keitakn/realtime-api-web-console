@@ -184,21 +184,21 @@ class VideoChatController:
                                 message = await self.websocket.receive_text()
                                 data = json.loads(message)
 
-                                if "input_text" in data:
+                                if "inputText" in data:
                                     await session.send(
-                                        input=data["input_text"], end_of_turn=True
+                                        input=data["inputText"], end_of_turn=True
                                     )
 
-                                if "realtime_input" in data:
-                                    for chunk in data["realtime_input"]["media_chunks"]:
-                                        if chunk["mime_type"] == "audio/pcm":
+                                if "realtimeInput" in data:
+                                    for chunk in data["realtimeInput"]["mediaChunks"]:
+                                        if chunk["mimeType"] == "audio/pcm":
                                             await session.send(
                                                 input={
                                                     "mime_type": "audio/pcm",
                                                     "data": chunk["data"],
                                                 }
                                             )
-                                        elif chunk["mime_type"] == "image/jpeg":
+                                        elif chunk["mimeType"] == "image/jpeg":
                                             await session.send(
                                                 input={
                                                     "mime_type": "image/jpeg",
