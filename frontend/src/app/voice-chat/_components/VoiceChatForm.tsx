@@ -7,27 +7,20 @@ import { Icon } from '@iconify/react';
 import {
   Button,
   cn,
+  Spacer,
   Tooltip,
 } from '@nextui-org/react';
 import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useCallback, useEffect, useRef, useState } from 'react';
-
-// HTMLAudioElementの型を拡張
-declare global {
-  // eslint-disable-next-line ts/consistent-type-definitions
-  interface HTMLAudioElement {
-    playsInline: boolean;
-    webkitPlaysInline: boolean;
-  }
-}
+import { InvalidPromptErrorMessage } from './InvalidPromptErrorMessage';
 
 // メッセージの型定義
-type Message = {
+type Conversation = {
   role: 'user' | 'assistant';
   message: string;
 };
 
-const log = logger.child({ module: 'VoiceChatForm' });
+const maxPromptLength = 2000;
 
 // Update getEphemeralToken to use the backend endpoint
 async function createEphemeralToken() {
@@ -44,26 +37,32 @@ async function createEphemeralToken() {
   return data.client_secret.value;
 }
 
+const log = logger.child({ module: 'VoiceChatForm' });
+
 export function VoiceChatForm() {
   const [prompt, setPrompt] = useState<string>('');
+  const [isInvalidPrompt, setIsInvalidPrompt] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [isDataChannelReady, setIsDataChannelReady] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(true);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [lastActivityTimestamp, setLastActivityTimestamp] = useState<number>(Date.now());
+
+  // アイドルタイムアウトの設定（5分）
+  const IDLE_TIMEOUT = 1000 * 60 * 5;
 
   const playAudioContextRef = useRef<AudioContext | null>(null);
   const audioUrl = useRef<string | undefined>(undefined);
   const currentAudio = useRef<AudioBufferSourceNode | null>(null);
+  const audioTrackRef = useRef<MediaStreamTrack | null>(null);
 
   // WebRTC references
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
-
-  const [isSessionActive, setIsSessionActive] = useState(false);
-
-  // 初期化状態を管理する新しいstate
-  const [isInitializing, setIsInitializing] = useState(false);
 
   // 現在再生中の音声を停止する関数
   const stopCurrentAudio = useCallback(() => {
@@ -79,35 +78,106 @@ export function VoiceChatForm() {
     }
   }, []);
 
+  const stopSession = () => {
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close();
+      dataChannelRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (audioUrl.current) {
+      URL.revokeObjectURL(audioUrl.current);
+      audioUrl.current = undefined;
+    }
+    if (isSpeaking) {
+      stopCurrentAudio();
+    }
+    if (audioTrackRef.current) {
+      audioTrackRef.current.stop();
+      audioTrackRef.current = null;
+    }
+    setIsSessionActive(false);
+    setConversations([]);
+    setStreamingMessage('');
+  };
+
+  // アクティビティを更新する関数
+  const updateActivity = useCallback(() => {
+    setLastActivityTimestamp(Date.now());
+  }, []);
+
+  // アイドルタイムアウトの監視
+  useEffect(() => {
+    if (!isSessionActive)
+      return;
+
+    const timer = setTimeout(() => {
+      const timeSinceLastActivity = Date.now() - lastActivityTimestamp;
+      if (timeSinceLastActivity >= IDLE_TIMEOUT) {
+        stopSession();
+        log.info('一定時間操作がなかったため、セッションを終了しました');
+      }
+    }, IDLE_TIMEOUT);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSessionActive, lastActivityTimestamp, IDLE_TIMEOUT]);
+
+  // タブの可視性変更の監視
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isSessionActive) {
+        stopSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSessionActive]);
+
+  // コネクションの定期的なヘルスチェック
+  useEffect(() => {
+    if (!isSessionActive)
+      return;
+
+    const interval = setInterval(() => {
+      if (peerConnectionRef.current?.connectionState !== 'connected') {
+        stopSession();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSessionActive]);
+
   // 音声再生の初期化関数
   const initializeAudio = useCallback(async () => {
     if (isAudioInitialized) {
-      log.info('音声再生は既に初期化済み');
       return true;
     }
 
     try {
-      log.info('AudioContext初期化開始');
       const ctx = new AudioContext();
       playAudioContextRef.current = ctx;
       await playAudioContextRef.current.resume();
 
       // 無音のバッファを再生して再生権限を取得
-      log.info('無音バッファの作成');
       const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(ctx.destination);
 
-      log.info('無音バッファの再生開始');
       source.start(0);
 
       setIsAudioInitialized(true);
-      log.info('音声再生の初期化が完了しました');
       return true;
     }
     catch (error) {
-      log.error(`音声再生の初期化に失敗しました`);
       console.error(error);
       return false;
     }
@@ -115,14 +185,11 @@ export function VoiceChatForm() {
 
   // 音声再生関数
   const playAudio = async (base64Audio: string) => {
-    log.info('playAudio関数が呼び出されました');
-
     // 新しい音声が送信された場合は既存の音声を停止
     stopCurrentAudio();
 
     try {
       if (!playAudioContextRef.current) {
-        log.warn('AudioContextが初期化されていません');
         return;
       }
 
@@ -154,7 +221,6 @@ export function VoiceChatForm() {
       source.start(0);
     }
     catch (error) {
-      log.error(`音声再生エラー`);
       console.error(error);
       setIsSpeaking(false);
     }
@@ -177,50 +243,24 @@ export function VoiceChatForm() {
     updateIndicator();
   };
 
-  const stopSession = () => {
-    if (dataChannelRef.current) {
-      dataChannelRef.current.close();
-      dataChannelRef.current = null;
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    if (playAudioContextRef.current) {
-      playAudioContextRef.current.close();
-      playAudioContextRef.current = null;
-    }
-    if (audioUrl.current) {
-      URL.revokeObjectURL(audioUrl.current);
-      audioUrl.current = undefined;
-    }
-    if (isSpeaking) {
-      stopCurrentAudio();
-    }
-    setIsSessionActive(false);
-    setMessages([]);
-    setStreamingMessage('');
-  };
-
   let newResponseMessage = '';
 
   // Handle incoming messages from the data channel
   const handleDataChannelMessage = async (event: MessageEvent) => {
     try {
-      const msg = JSON.parse(event.data);
-      // log.debug('Received message:', msg);
+      const receivedDataChannelMessage = JSON.parse(event.data);
 
-      switch (msg.type) {
+      switch (receivedDataChannelMessage.type) {
         case 'conversation.item.create':
           // conversation.item.createは無視（ストリーミングで処理する）
           break;
         case 'response.text.delta':
-          if (msg.delta) {
+          if (receivedDataChannelMessage.delta) {
             // ストリーミングメッセージを更新
-            newResponseMessage += msg.delta;
+            newResponseMessage += receivedDataChannelMessage.delta;
 
             setStreamingMessage((prev) => {
-              const updated = prev + msg.delta;
+              const updated = prev + receivedDataChannelMessage.delta;
               return updated;
             });
           }
@@ -230,7 +270,7 @@ export function VoiceChatForm() {
             const lastAssistantMessage = newResponseMessage;
 
             // メッセージを追加
-            setMessages(prev => [...prev, {
+            setConversations(prev => [...prev, {
               role: 'assistant',
               message: lastAssistantMessage,
             }]);
@@ -260,7 +300,7 @@ export function VoiceChatForm() {
               }
             }
             catch (error) {
-              log.error('音声生成エラー:', error);
+              console.error(error);
             }
 
             newResponseMessage = '';
@@ -273,67 +313,49 @@ export function VoiceChatForm() {
           // これらのメッセージは無視
           break;
         default:
-          log.debug('Unhandled message type:', msg.type);
+          // eslint-disable-next-line no-console
+          console.log('Unhandled message type:', receivedDataChannelMessage.type);
       }
     }
     catch (error) {
-      log.error('Error handling data channel message:', error);
+      console.error(error);
     }
   };
 
-  // WebRTCセッションの初期化
   const startSession = async () => {
     try {
-      log.info('Starting WebRTC session');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setupAudioVisualization(stream);
 
-      log.info('Fetching ephemeral token');
+      // 音声トラックの参照を保持し、初期状態を設定
+      audioTrackRef.current = stream.getTracks()[0];
+      audioTrackRef.current.enabled = !isMicMuted; // 初期状態をisMicMutedの逆に設定
+
       const ephemeralToken = await createEphemeralToken();
 
-      log.info('Establishing connection');
       const pc = new RTCPeerConnection();
       peerConnectionRef.current = pc;
 
-      // Connection state monitoring
-      pc.onconnectionstatechange = () => {
-        log.info('Connection state changed:', pc.connectionState);
-      };
-
-      pc.oniceconnectionstatechange = () => {
-        log.info('ICE connection state:', pc.iceConnectionState);
-      };
-
-      pc.onicegatheringstatechange = () => {
-        log.info('ICE gathering state:', pc.iceGatheringState);
-      };
-
-      // Hidden <audio> element for inbound assistant TTS
       const audioElement = document.createElement('audio');
       audioElement.autoplay = true;
 
-      // Inbound track => assistant's TTS
       pc.ontrack = (event) => {
-        log.info('Received track:', event.track.kind);
         audioElement.srcObject = event.streams[0];
       };
 
-      // Data channel for transcripts
       const dataChannel = pc.createDataChannel('response');
       dataChannelRef.current = dataChannel;
 
       dataChannel.onopen = () => {
-        log.info('Data channel opened');
         setIsDataChannelReady(true);
       };
 
       dataChannel.onclose = () => {
-        log.info('Data channel closed');
         setIsDataChannelReady(false);
       };
 
       dataChannel.onerror = (error) => {
-        log.error('Data channel error:', error);
+        console.error(error);
       };
 
       dataChannel.onmessage = handleDataChannelMessage;
@@ -341,15 +363,13 @@ export function VoiceChatForm() {
       // Add local (mic) track
       pc.addTrack(stream.getTracks()[0]);
 
-      // Create offer & set local description
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      log.info('Local description set');
 
       // Send SDP offer to OpenAI Realtime
       const baseUrl = 'https://api.openai.com/v1/realtime';
       const model = 'gpt-4o-realtime-preview-2024-12-17';
-      const response = await fetch(`${baseUrl}?model=${model}&voice=alloy`, {
+      const response = await fetch(`${baseUrl}?model=${model}`, {
         method: 'POST',
         body: offer.sdp,
         headers: {
@@ -361,13 +381,11 @@ export function VoiceChatForm() {
       // Set remote description
       const answerSdp = await response.text();
       await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
-      log.info('Remote description set');
 
       setIsSessionActive(true);
-      log.info('Session established successfully!');
     }
-    catch (err) {
-      console.error('startSession error:', err);
+    catch (error) {
+      console.error(error);
       stopSession();
     }
   };
@@ -379,11 +397,11 @@ export function VoiceChatForm() {
     }
 
     // ユーザーメッセージを追加
-    const newMessage: Message = {
+    const newConversation: Conversation = {
       role: 'user',
       message: text,
     };
-    setMessages(prev => [...prev, newMessage]);
+    setConversations(prev => [...prev, newConversation]);
 
     // メッセージを送信
     const message = {
@@ -417,14 +435,15 @@ export function VoiceChatForm() {
     return () => {
       stopSession();
     };
-  // Empty dependency array means this effect runs once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Empty dependency array means this effect runs once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    updateActivity(); // アクティビティ更新
 
     // 送信時に再生中の音声を停止
     stopCurrentAudio();
@@ -451,6 +470,8 @@ export function VoiceChatForm() {
     event,
   ) => {
     setPrompt(event.target.value);
+    setIsInvalidPrompt(prompt.length > maxPromptLength);
+    updateActivity(); // アクティビティ更新
   };
 
   // セッション開始時の処理をまとめた関数
@@ -463,10 +484,19 @@ export function VoiceChatForm() {
       await startSession();
     }
     catch (error) {
-      log.error('初期化中にエラーが発生しました:', error);
+      console.error(error);
     }
     finally {
       setIsInitializing(false);
+    }
+  };
+
+  const handleMicToggle = () => {
+    if (audioTrackRef.current) {
+      const newMutedState = !isMicMuted;
+      setIsMicMuted(newMutedState);
+      audioTrackRef.current.enabled = !newMutedState;
+      updateActivity(); // アクティビティ更新
     }
   };
 
@@ -489,12 +519,12 @@ export function VoiceChatForm() {
       </div>
 
       <div className="flex flex-col gap-4 px-1">
-        {messages.map((message, index) => {
-          if (message.role === 'user') {
+        {conversations.map((conversation, index) => {
+          if (conversation.role === 'user') {
             return (
               <MessageCard
                 key={index}
-                message={message.message}
+                message={conversation.message}
                 showFeedback={false}
               />
             );
@@ -504,26 +534,40 @@ export function VoiceChatForm() {
             <MessageCard
               key={index}
               avatar="/omochi.png"
-              message={message.message}
+              message={conversation.message}
             />
           );
         })}
         {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} />}
       </div>
 
-      {!isSessionActive && !isInitializing && (
+      <Spacer y={4} />
+
+      {(!isSessionActive && !isDataChannelReady) && (
         <Button
           color="primary"
           onPress={handleStartSession}
           isLoading={isInitializing}
         >
-          会話をスタートする
+          <span className="font-bold">会話をスタートする</span>
         </Button>
       )}
+      {(isSessionActive && isDataChannelReady) && (
+        <Button
+          color="danger"
+          variant="flat"
+          onPress={stopSession}
+        >
+          <span className="font-bold">会話を終了する</span>
+        </Button>
+      )}
+      <Spacer y={4} />
 
       {(isSessionActive && isDataChannelReady) && (
         <form className="flex w-full items-start gap-2" onSubmit={handleSubmit}>
           <PromptInput
+            isInvalidPrompt={isInvalidPrompt}
+            errorMessage={isInvalidPrompt && <InvalidPromptErrorMessage maxPromptLength={maxPromptLength} />}
             onKeyDown={handleKeyDown}
             onChange={handleChangeTextarea}
             classNames={{
@@ -539,10 +583,11 @@ export function VoiceChatForm() {
                     radius="full"
                     size="sm"
                     variant="light"
+                    onPress={handleMicToggle}
                   >
                     <Icon
                       className={cn('text-default-500')}
-                      icon="solar:microphone-3-linear"
+                      icon={isMicMuted ? 'ph:microphone-slash' : 'ph:microphone'}
                       width={20}
                     />
                   </Button>
