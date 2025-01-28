@@ -1,6 +1,7 @@
 'use client';
 
 import { MessageCard } from '@/app/_components/MessageCard';
+import { PromptInput } from '@/app/_components/PromptInput';
 import { logger } from '@/logging/logger';
 import { Icon } from '@iconify/react';
 import {
@@ -10,9 +11,6 @@ import {
 } from '@nextui-org/react';
 import Image from 'next/image';
 import { type ChangeEventHandler, type FormEvent, type KeyboardEventHandler, useCallback, useEffect, useRef, useState } from 'react';
-import { z } from 'zod';
-import { PromptInput } from '@/app/_components/PromptInput';
-import { v4 as uuidv4 } from 'uuid';
 
 // HTMLAudioElementの型を拡張
 declare global {
@@ -225,7 +223,7 @@ export function VoiceChatForm() {
         method: 'POST',
         body: offer.sdp,
         headers: {
-          Authorization: `Bearer ${ephemeralToken}`,
+          'Authorization': `Bearer ${ephemeralToken}`,
           'Content-Type': 'application/sdp',
         },
       });
@@ -237,7 +235,8 @@ export function VoiceChatForm() {
 
       setIsSessionActive(true);
       log.info('Session established successfully!');
-    } catch (err) {
+    }
+    catch (err) {
       console.error('startSession error:', err);
       setStatus(`Error: ${err}`);
       stopSession();
@@ -297,7 +296,7 @@ export function VoiceChatForm() {
         content: [
           {
             type: 'input_text',
-            text: text,
+            text,
           },
         ],
       },
@@ -406,7 +405,8 @@ export function VoiceChatForm() {
         default:
           log.debug('Unhandled message type:', msg.type);
       }
-    } catch (error) {
+    }
+    catch (error) {
       log.error('Error handling data channel message:', error);
     }
   };
