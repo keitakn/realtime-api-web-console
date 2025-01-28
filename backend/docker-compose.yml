@@ -8,6 +8,7 @@ services:
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       NIJIVOICE_API_KEY: ${NIJIVOICE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     volumes:
       - ./Makefile:/Makefile
       - ./pyproject.toml:/pyproject.toml
