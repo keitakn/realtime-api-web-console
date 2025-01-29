@@ -51,7 +51,6 @@ class VoiceChatController:
                 },
                 json={
                     "model": "gpt-4o-realtime-preview-2024-12-17",
-                    "voice": "alloy",
                     "modalities": ["text"],
                     "instructions": system_prompt,
                     "tool_choice": "auto",
@@ -66,6 +65,7 @@ class VoiceChatController:
                 )
 
             session_data = response.json()
+
             app_logger.logger.info("OpenAI セッション作成成功")
             return session_data
 
