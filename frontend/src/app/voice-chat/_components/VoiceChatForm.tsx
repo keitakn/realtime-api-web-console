@@ -346,7 +346,7 @@ export function VoiceChatForm() {
 
   // Update getEphemeralToken to use the backend endpoint
   const getEphemeralToken = async () => {
-    const response = await fetch('http://localhost:8000/realtime-apis/voice-chat', {
+    const response = await fetch(String(process.env.NEXT_PUBLIC_EPHEMERAL_TOKEN_ENDPOINT), {
       method: 'POST',
     });
 
@@ -365,7 +365,7 @@ export function VoiceChatForm() {
   let newResponseMessage = '';
 
   // Handle incoming messages from the data channel
-  const handleDataChannelMessage = (event: MessageEvent) => {
+  const handleDataChannelMessage = async (event: MessageEvent) => {
     try {
       const msg = JSON.parse(event.data);
       // log.debug('Received message:', msg);
@@ -388,11 +388,41 @@ export function VoiceChatForm() {
         case 'response.text.done':
           if (newResponseMessage !== '') {
             const lastAssistantMessage = newResponseMessage;
-            // TODO: lastAssistantMessageを使って音声を再生する
+
+            // メッセージを追加
             setMessages(prev => [...prev, {
               role: 'assistant',
               message: lastAssistantMessage,
             }]);
+
+            newResponseMessage = '';
+            setStreamingMessage('');
+
+            // 音声を生成して再生
+            try {
+              const response = await fetch('/api/voices', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  script: lastAssistantMessage,
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error('音声生成に失敗しました');
+              }
+
+              const audioData = await response.json();
+              if (audioData.base64Audio) {
+                await playAudio(audioData.base64Audio);
+              }
+            }
+            catch (error) {
+              log.error('音声生成エラー:', error);
+            }
+
             newResponseMessage = '';
             setStreamingMessage('');
           }
