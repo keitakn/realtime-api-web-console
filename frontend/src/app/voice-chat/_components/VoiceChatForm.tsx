@@ -54,6 +54,9 @@ export function VoiceChatForm() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [status, setStatus] = useState('');
 
+  // 初期化状態を管理する新しいstate
+  const [isInitializing, setIsInitializing] = useState(false);
+
   // 現在再生中の音声を停止する関数
   const stopCurrentAudio = useCallback(() => {
     if (currentAudio.current) {
@@ -315,9 +318,6 @@ export function VoiceChatForm() {
 
   // Cleanup on unmount
   useEffect(() => {
-    // Call startSession when component mounts
-    startSession();
-
     // Cleanup when component unmounts
     return () => {
       stopSession();
@@ -570,6 +570,22 @@ export function VoiceChatForm() {
     }
   };
 
+  // セッション開始時の処理をまとめた関数
+  const handleStartSession = async () => {
+    setIsInitializing(true);
+    try {
+      // 音声初期化
+      await initializeAudio();
+      // WebRTCセッション開始
+      await startSession();
+    } catch (error) {
+      log.error('初期化中にエラーが発生しました:', error);
+      setStatus(`Error: ${error}`);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   return (
     <>
       <div className="w-full max-w-4xl rounded-lg bg-white p-6 shadow-lg">
@@ -611,81 +627,88 @@ export function VoiceChatForm() {
         {streamingMessage && <MessageCard avatar="/omochi.png" message={streamingMessage} />}
       </div>
 
-      <form className="flex w-full items-start gap-2" onSubmit={handleSubmit}>
-        <PromptInput
-          onKeyDown={handleKeyDown}
-          onChange={handleChangeTextarea}
-          classNames={{
-            innerWrapper: 'relative w-full',
-            input: 'pt-1 pb-6 !pr-10 text-medium',
-          }}
-          ref={textareaRef}
-          endContent={(
-            <div className="absolute right-0 flex h-full flex-col items-end justify-between gap-2">
-              <Tooltip showArrow content="Speak">
-                <Button
-                  isIconOnly
-                  radius="full"
-                  size="sm"
-                  variant="light"
-                  onPress={async () => {
-                    // マイクボタンクリック時に音声初期化も行う
-                    if (!isAudioInitialized) {
-                      await initializeAudio();
-                    }
+      {!isSessionActive && !isInitializing && (
+        <Button
+          color="primary"
+          onPress={handleStartSession}
+          isLoading={isInitializing}
+        >
+          会話をスタートする
+        </Button>
+      )}
 
-                    if (isRecording) {
-                      stopRecording();
-                    }
-                    else {
-                      startRecording();
-                    }
-                  }}
-                >
-                  <Icon
-                    className={cn(
-                      'text-default-500',
-                      isRecording && 'text-red-500',
-                    )}
-                    icon="solar:microphone-3-linear"
-                    width={20}
-                  />
-                </Button>
-              </Tooltip>
-              <div className="flex items-end gap-2">
-                <p className="py-1 text-tiny text-default-400">
-                  {prompt.length}
-                  /2000
-                </p>
-                <Tooltip showArrow content="Send message">
+      {isSessionActive && (
+        <form className="flex w-full items-start gap-2" onSubmit={handleSubmit}>
+          <PromptInput
+            onKeyDown={handleKeyDown}
+            onChange={handleChangeTextarea}
+            classNames={{
+              innerWrapper: 'relative w-full',
+              input: 'pt-1 pb-6 !pr-10 text-medium',
+            }}
+            ref={textareaRef}
+            endContent={(
+              <div className="absolute right-0 flex h-full flex-col items-end justify-between gap-2">
+                <Tooltip showArrow content="Speak">
                   <Button
-                    type="submit"
                     isIconOnly
-                    color={!prompt ? 'default' : 'primary'}
-                    isDisabled={!prompt}
-                    radius="lg"
+                    radius="full"
                     size="sm"
-                    variant={!prompt ? 'flat' : 'solid'}
+                    variant="light"
+                    onPress={async () => {
+                      if (isRecording) {
+                        stopRecording();
+                      }
+                      else {
+                        startRecording();
+                      }
+                    }}
                   >
                     <Icon
                       className={cn(
-                        '[&>path]:stroke-[2px]',
-                        !prompt ? 'text-default-600' : 'text-primary-foreground',
+                        'text-default-500',
+                        isRecording && 'text-red-500',
                       )}
-                      icon="solar:arrow-up-linear"
+                      icon="solar:microphone-3-linear"
                       width={20}
                     />
                   </Button>
                 </Tooltip>
+                <div className="flex items-end gap-2">
+                  <p className="py-1 text-tiny text-default-400">
+                    {prompt.length}
+                    /2000
+                  </p>
+                  <Tooltip showArrow content="Send message">
+                    <Button
+                      type="submit"
+                      isIconOnly
+                      color={!prompt ? 'default' : 'primary'}
+                      isDisabled={!prompt}
+                      radius="lg"
+                      size="sm"
+                      variant={!prompt ? 'flat' : 'solid'}
+                    >
+                      <Icon
+                        className={cn(
+                          '[&>path]:stroke-[2px]',
+                          !prompt ? 'text-default-600' : 'text-primary-foreground',
+                        )}
+                        icon="solar:arrow-up-linear"
+                        width={20}
+                      />
+                    </Button>
+                  </Tooltip>
+                </div>
               </div>
-            </div>
-          )}
-          minRows={3}
-          radius="lg"
-          value={prompt}
-          onValueChange={setPrompt}
-        />
-      </form>
+            )}
+            minRows={3}
+            radius="lg"
+            value={prompt}
+            onValueChange={setPrompt}
+          />
+        </form>
+      )}
     </>
   );
 }
