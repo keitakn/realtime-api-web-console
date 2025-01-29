@@ -455,53 +455,39 @@ export function VoiceChatForm() {
     setIsRecording(true);
 
     try {
-      recordingAudioContextRef.current = new AudioContext({
-        sampleRate: 16000,
-      });
-
-      const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-        },
-      });
-
-      await recordingAudioContextRef.current.audioWorklet.addModule('/audio-processing.worklet.js');
-
-      sourceRef.current = recordingAudioContextRef.current.createMediaStreamSource(audioStream);
-      audioWorkletNodeRef.current = new AudioWorkletNode(recordingAudioContextRef.current, 'audio-processor');
-
-      audioWorkletNodeRef.current.port.onmessage = async (event) => {
-        if (event.data.event === 'chunk') {
-          const base64 = btoa(
-            String.fromCharCode(...new Uint8Array(event.data.data.int16arrayBuffer)),
-          );
-
-          // Send audio data through WebRTC data channel
-          if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
-            const message = {
-              type: 'conversation.item.create',
-              item: {
-                type: 'message',
-                role: 'user',
-                content: [
-                  {
-                    type: 'audio_data',
-                    data: base64,
-                  },
-                ],
-              },
-            };
-            dataChannelRef.current.send(JSON.stringify(message));
+      // 既存の音声トラックを削除
+      if (peerConnectionRef.current) {
+        const senders = peerConnectionRef.current.getSenders();
+        senders.forEach((sender) => {
+          if (sender.track?.kind === 'audio') {
+            sender.track.stop();
+            peerConnectionRef.current?.removeTrack(sender);
           }
-        }
-      };
+        });
+      }
 
-      sourceRef.current.connect(audioWorkletNodeRef.current);
-      audioWorkletNodeRef.current.connect(recordingAudioContextRef.current.destination);
+      // セッションを再初期化
+      await startSession();
+
+      // 音声データの送信開始を通知
+      if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+        const startMessage = {
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'audio_start',
+              },
+            ],
+          },
+        };
+        dataChannelRef.current.send(JSON.stringify(startMessage));
+      }
     }
     catch (error) {
-      log.error(`録音の開始中にエラーが発生しました`);
+      log.error('録音の開始中にエラーが発生しました');
       console.error(error);
       setIsRecording(false);
     }
@@ -510,6 +496,7 @@ export function VoiceChatForm() {
   const stopRecording = () => {
     setIsRecording(false);
 
+    // 既存のAudioWorklet関連のクリーンアップ
     if (audioWorkletNodeRef.current) {
       audioWorkletNodeRef.current.disconnect();
       audioWorkletNodeRef.current = null;
@@ -523,6 +510,33 @@ export function VoiceChatForm() {
     if (recordingAudioContextRef.current) {
       recordingAudioContextRef.current.close();
       recordingAudioContextRef.current = null;
+    }
+
+    // WebRTCの音声トラックを停止
+    if (peerConnectionRef.current) {
+      const senders = peerConnectionRef.current.getSenders();
+      senders.forEach((sender) => {
+        if (sender.track?.kind === 'audio') {
+          sender.track.stop(); // トラックを停止
+        }
+      });
+
+      // 音声データの送信終了を通知
+      if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+        const endMessage = {
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'audio_end',
+              },
+            ],
+          },
+        };
+        dataChannelRef.current.send(JSON.stringify(endMessage));
+      }
     }
   };
 
