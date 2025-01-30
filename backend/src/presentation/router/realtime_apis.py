@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket
 from google.genai.live import AsyncSession  # noqa: F401
 from log.logger import AppLogger
 from presentation.controller.video_chat_controller import VideoChatController
-from presentation.controller.voice_chat_controller import VoiceChatController
+from presentation.controller.create_voice_chat_session_controller import CreateVoiceChatSessionController
 
 router = APIRouter()
 app_logger = AppLogger()
@@ -13,8 +13,8 @@ async def voice_chat_endpoint():
     """
     このエンドポイントはOpenAI Realtime APIのセッショントークンを取得する為のエンドポイントです。
     """
-    controller = VoiceChatController()
-    return await controller.create_session()
+    controller = CreateVoiceChatSessionController()
+    return await controller.exec()
 
 
 @router.websocket("/realtime-apis/video-chat")

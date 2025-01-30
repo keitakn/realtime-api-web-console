@@ -32,9 +32,9 @@ async function createEphemeralToken() {
     throw new Error('Failed to fetch ephemeral token');
   }
 
-  const data = await response.json();
+  const responseBody = await response.json();
 
-  return data.client_secret.value;
+  return responseBody.ephemeralToken;
 }
 
 const log = logger.child({ module: 'VoiceChatForm' });

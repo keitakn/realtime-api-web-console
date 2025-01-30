@@ -1,7 +1,9 @@
 import os
-from fastapi import HTTPException
-from log.logger import AppLogger
 import requests
+from starlette import status
+from starlette.responses import JSONResponse
+from presentation.error_response import create_unexpected_error_body
+from log.logger import AppLogger
 
 app_logger = AppLogger()
 
@@ -36,12 +38,15 @@ system_prompt = """
 """
 
 
-class VoiceChatController:
-    async def create_session(self):
+class CreateVoiceChatSessionController:
+    async def exec(self) -> JSONResponse:
         """OpenAI Realtime APIのセッションを作成する"""
         try:
             if not os.getenv("OPENAI_API_KEY"):
-                raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content=create_unexpected_error_body(),
+                )
 
             response = requests.post(
                 "https://api.openai.com/v1/realtime/sessions",
@@ -59,18 +64,25 @@ class VoiceChatController:
 
             if not response.ok:
                 app_logger.logger.error(f"OpenAI APIエラー: {response.text}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"API request failed with status {response.text}",
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content=create_unexpected_error_body(),
                 )
 
-            session_data = response.json()
+            response_body = response.json()
 
-            app_logger.logger.info("OpenAI セッション作成成功")
-            return session_data
+            app_logger.logger.info("created session")
+
+            return JSONResponse(
+                status_code=status.HTTP_201_CREATED,
+                content={
+                    "ephemeralToken": response_body["client_secret"]["value"],
+                },
+            )
 
         except Exception as e:
             app_logger.logger.error(f"セッション作成エラー: {str(e)}")
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail="Failed to fetch session data")
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content=create_unexpected_error_body(),
+            )
