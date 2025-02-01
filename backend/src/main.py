@@ -16,6 +16,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://realtime-api-web-console.vercel.app",
+        "https://local-keitakn.ai-meow-cat.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
