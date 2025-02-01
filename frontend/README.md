@@ -26,6 +26,8 @@ npm ci
 
 ```
 NEXT_PUBLIC_VIDEO_CHAT_API_SERVER_URL=ws://localhost:8000/realtime-apis/video-chat
+NEXT_PUBLIC_API_SERVER_URL=http://localhost:8000
+NIJIVOICE_API_KEY="https://platform.nijivoice.com/ で発行したAPIキー"
 ```
 
 ### バックエンドのAPIサーバーを起動
