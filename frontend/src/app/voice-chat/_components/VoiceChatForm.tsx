@@ -24,7 +24,7 @@ const maxPromptLength = 2000;
 
 // Update getEphemeralToken to use the backend endpoint
 async function createEphemeralToken() {
-  const response = await fetch(String(process.env.NEXT_PUBLIC_EPHEMERAL_TOKEN_ENDPOINT), {
+  const response = await fetch(`${String(process.env.NEXT_PUBLIC_API_SERVER_URL)}/realtime-apis/voice-chat/sessions`, {
     method: 'POST',
   });
 
