@@ -17,6 +17,7 @@ MacOSを利用する前提の手順になります。
 ```bash
 export GEMINI_API_KEY="https://aistudio.google.com/ で発行したAPIキー"
 export NIJIVOICE_API_KEY="https://platform.nijivoice.com/ で発行したAPIキー"
+export OPENAI_API_KEY="https://platform.openai.com/settings/organization/api-keys で発行したAPIキー"
 ```
 
 ### uvのインストール
