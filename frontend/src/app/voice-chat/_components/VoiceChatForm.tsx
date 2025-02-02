@@ -226,23 +226,6 @@ export function VoiceChatForm() {
     }
   };
 
-  const setupAudioVisualization = (stream: MediaStream) => {
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    const updateIndicator = () => {
-      analyser.getByteFrequencyData(dataArray);
-      requestAnimationFrame(updateIndicator);
-    };
-    updateIndicator();
-  };
-
   let newResponseMessage = '';
 
   // Handle incoming messages from the data channel
@@ -325,11 +308,11 @@ export function VoiceChatForm() {
   const startSession = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setupAudioVisualization(stream);
 
       // 音声トラックの参照を保持し、初期状態を設定
       audioTrackRef.current = stream.getTracks()[0];
-      audioTrackRef.current.enabled = !isMicMuted; // 初期状態をisMicMutedの逆に設定
+      // 初期状態をisMicMutedの逆に設定
+      audioTrackRef.current.enabled = !isMicMuted;
 
       const ephemeralToken = await createEphemeralToken();
 
