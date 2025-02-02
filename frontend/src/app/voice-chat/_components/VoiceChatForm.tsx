@@ -307,7 +307,14 @@ export function VoiceChatForm() {
 
   const startSession = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia(
+        {
+          audio: {
+            channelCount: 1,
+            sampleRate: 16000,
+          },
+        },
+      );
 
       // 音声トラックの参照を保持し、初期状態を設定
       audioTrackRef.current = stream.getTracks()[0];
@@ -331,6 +338,27 @@ export function VoiceChatForm() {
 
       dataChannel.onopen = () => {
         setIsDataChannelReady(true);
+        // 自動的に「こんにちは」メッセージを送信
+        const message = {
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text: 'こんにちは',
+              },
+            ],
+          },
+        };
+
+        const response = {
+          type: 'response.create',
+        };
+
+        dataChannel.send(JSON.stringify(message));
+        dataChannel.send(JSON.stringify(response));
       };
 
       dataChannel.onclose = () => {
