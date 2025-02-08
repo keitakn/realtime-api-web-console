@@ -1,8 +1,8 @@
 'use client';
 
-import type { ReceivedDataChannelMessage } from '@/lib/openai';
 import { MessageCard } from '@/app/_components/MessageCard';
 import { PromptInput } from '@/app/_components/PromptInput';
+import { parseReceivedDataChannelMessage } from '@/lib/openai';
 import { logger } from '@/logging/logger';
 import { ExhaustiveError } from '@/utils/ExhaustiveError';
 import { Icon } from '@iconify/react';
@@ -233,7 +233,8 @@ export function VoiceChatForm() {
   // Handle incoming messages from the data channel
   const handleDataChannelMessage = async (event: MessageEvent<string>) => {
     try {
-      const receivedDataChannelMessage = JSON.parse(event.data) as ReceivedDataChannelMessage;
+      const parsedData = JSON.parse(event.data);
+      const receivedDataChannelMessage = parseReceivedDataChannelMessage(parsedData);
 
       switch (receivedDataChannelMessage.type) {
         case 'session.created':
