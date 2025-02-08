@@ -1,69 +1,90 @@
+import { z } from 'zod';
+
 // WebRTCデータチャネルで受信するメッセージの型定義
-type SessionCreatedMessage = {
-  type: 'session.created';
-};
+// Zodスキーマの定義
+const sessionCreatedSchema = z.object({
+  type: z.literal('session.created'),
+});
 
-type SessionUpdatedMessage = {
-  type: 'session.updated';
-};
+const sessionUpdatedSchema = z.object({
+  type: z.literal('session.updated'),
+});
 
-type ConversationItemCreatedMessage = {
-  type: 'conversation.item.created';
-  item: unknown;
-  previous_item_id: string;
-};
+const conversationItemCreatedSchema = z.object({
+  type: z.literal('conversation.item.created'),
+  item: z.object({
+    content: z.array(z.unknown()),
+    id: z.string(),
+    object: z.literal('realtime.item'),
+    role: z.enum(['user', 'assistant']),
+    status: z.enum(['in_progress', 'completed']),
+    type: z.literal('message'),
+  }),
+  previous_item_id: z.string().nullable(),
+});
 
-type ResponseCreatedMessage = {
-  type: 'response.created';
-};
+const responseCreatedSchema = z.object({
+  type: z.literal('response.created'),
+});
 
-type RateLimitsUpdatedMessage = {
-  type: 'rate_limits.updated';
-  rate_limits: {
-    requests_remaining: number;
-    tokens_remaining: number;
-  };
-};
+const rateLimitsUpdatedSchema = z.object({
+  type: z.literal('rate_limits.updated'),
+  event_id: z.string(),
+  rate_limits: z.array(z.object({
+    name: z.enum(['requests', 'tokens']),
+    limit: z.number(),
+    remaining: z.number(),
+    reset_seconds: z.number(),
+  })),
+});
 
-type ResponseOutputItemAddedMessage = {
-  type: 'response.output_item.added';
-};
+const responseOutputItemAddedSchema = z.object({
+  type: z.literal('response.output_item.added'),
+});
 
-type ResponseContentPartAddedMessage = {
-  type: 'response.content_part.added';
-};
+const responseContentPartAddedSchema = z.object({
+  type: z.literal('response.content_part.added'),
+});
 
-type ResponseTextDeltaMessage = {
-  type: 'response.text.delta';
-  delta: string;
-};
+const responseTextDeltaSchema = z.object({
+  type: z.literal('response.text.delta'),
+  delta: z.string(),
+});
 
-type ResponseTextDoneMessage = {
-  type: 'response.text.done';
-};
+const responseTextDoneSchema = z.object({
+  type: z.literal('response.text.done'),
+});
 
-type ResponseOutputItemDoneMessage = {
-  type: 'response.output_item.done';
-};
+const responseOutputItemDoneSchema = z.object({
+  type: z.literal('response.output_item.done'),
+});
 
-type ResponseContentPartDoneMessage = {
-  type: 'response.content_part.done';
-};
+const responseContentPartDoneSchema = z.object({
+  type: z.literal('response.content_part.done'),
+});
 
-type ResponseDoneMessage = {
-  type: 'response.done';
-};
+const responseDoneSchema = z.object({
+  type: z.literal('response.done'),
+});
 
-export type ReceivedDataChannelMessage =
-  | SessionCreatedMessage
-  | SessionUpdatedMessage
-  | ConversationItemCreatedMessage
-  | ResponseCreatedMessage
-  | RateLimitsUpdatedMessage
-  | ResponseOutputItemAddedMessage
-  | ResponseContentPartAddedMessage
-  | ResponseTextDeltaMessage
-  | ResponseTextDoneMessage
-  | ResponseOutputItemDoneMessage
-  | ResponseContentPartDoneMessage
-  | ResponseDoneMessage;
+// ユニオン型のスキーマ
+export const receivedDataChannelMessageSchema = z.discriminatedUnion('type', [
+  sessionCreatedSchema,
+  sessionUpdatedSchema,
+  conversationItemCreatedSchema,
+  responseCreatedSchema,
+  rateLimitsUpdatedSchema,
+  responseOutputItemAddedSchema,
+  responseContentPartAddedSchema,
+  responseTextDeltaSchema,
+  responseTextDoneSchema,
+  responseOutputItemDoneSchema,
+  responseContentPartDoneSchema,
+  responseDoneSchema,
+]);
+
+export type ReceivedDataChannelMessage = z.infer<typeof receivedDataChannelMessageSchema>;
+
+export function parseReceivedDataChannelMessage(value: unknown): ReceivedDataChannelMessage {
+  return receivedDataChannelMessageSchema.parse(value);
+}
