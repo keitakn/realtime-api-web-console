@@ -1,8 +1,10 @@
 'use client';
 
+import type { ReceivedDataChannelMessage } from '@/lib/openai';
 import { MessageCard } from '@/app/_components/MessageCard';
 import { PromptInput } from '@/app/_components/PromptInput';
 import { logger } from '@/logging/logger';
+import { ExhaustiveError } from '@/utils/ExhaustiveError';
 import { Icon } from '@iconify/react';
 import {
   Button,
@@ -229,13 +231,27 @@ export function VoiceChatForm() {
   let newResponseMessage = '';
 
   // Handle incoming messages from the data channel
-  const handleDataChannelMessage = async (event: MessageEvent) => {
+  const handleDataChannelMessage = async (event: MessageEvent<string>) => {
     try {
-      const receivedDataChannelMessage = JSON.parse(event.data);
+      const receivedDataChannelMessage = JSON.parse(event.data) as ReceivedDataChannelMessage;
 
       switch (receivedDataChannelMessage.type) {
-        case 'conversation.item.create':
-          // conversation.item.createは無視（ストリーミングで処理する）
+        case 'session.created':
+        case 'session.updated':
+          // セッション関連のメッセージは無視
+          break;
+        case 'conversation.item.created':
+          // conversation.item.createdは無視（ストリーミングで処理する）
+          break;
+        case 'response.created':
+          // response.createdは無視
+          break;
+        case 'rate_limits.updated':
+          // レート制限の更新は現状無視
+          break;
+        case 'response.output_item.added':
+        case 'response.content_part.added':
+          // これらのメッセージは無視
           break;
         case 'response.text.delta':
           if (receivedDataChannelMessage.delta) {
@@ -296,8 +312,7 @@ export function VoiceChatForm() {
           // これらのメッセージは無視
           break;
         default:
-          // eslint-disable-next-line no-console
-          console.log('Unhandled message type:', receivedDataChannelMessage.type);
+          throw new ExhaustiveError(receivedDataChannelMessage);
       }
     }
     catch (error) {
