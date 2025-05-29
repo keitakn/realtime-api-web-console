@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115.6",
-    "google-genai>=0.4.0",
+    "google-genai>=1.17.0",
     "types-requests>=2.32.0.20241016",
     "uvicorn>=0.32.1",
 ]
