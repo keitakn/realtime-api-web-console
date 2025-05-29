@@ -20,6 +20,43 @@ export NIJIVOICE_API_KEY="https://platform.nijivoice.com/ で発行したAPIキ�
 export OPENAI_API_KEY="https://platform.openai.com/settings/organization/api-keys で発行したAPIキー"
 ```
 
+### Google Cloud の認証
+
+#### GoogleCloudの認証&サービスの有効化
+
+複数のプロジェクトを管理する事になるので以下のようにプロジェクト毎にGoogleCloudの認証設定を追加しておくと便利です。
+
+#### 1. 各プロジェクト用の設定を作成
+
+```bash
+gcloud config configurations create ai-cat
+```
+
+#### 2. 各設定にアカウントとプロジェクトを紐付ける
+
+`my-account@gmail.com` の部分はご自身のメールアドレスに置き換えてください。
+
+```bash
+gcloud config configurations activate ai-cat
+gcloud auth login my-account@gmail.com
+gcloud config set project ai-cat-432115
+```
+
+#### 3. 各設定でApplication Default Credentialsを設定
+
+```bash
+gcloud config configurations activate ai-cat
+gcloud auth application-default login
+```
+
+コマンドの実行前に `gcloud config configurations activate ai-cat` を実行して対象プロジェクトの認証設定が有効になっている事を確認します。
+
+現在の設定は以下のコマンドで確認可能です。
+
+```bash
+gcloud config configurations list
+```
+
 ### uvのインストール
 
 Homebrew でインストールを実施します。

@@ -7,6 +7,15 @@ from typing import TypedDict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai.live import AsyncSession  # noqa: F401
+from google.genai.types import (
+    HttpOptions,
+    LiveConnectConfigDict,
+    ToolDict,
+    Modality,
+    ContentDict,
+    PartDict,
+    ToolListUnionDict,
+)
 from log.logger import AppLogger
 
 router = APIRouter()
@@ -148,21 +157,32 @@ system_prompt = """
 
 # Gemini APIの設定
 client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY"), http_options={"api_version": "v1alpha"}
+    http_options=HttpOptions(api_version="v1beta1"),
 )
 MODEL = "gemini-2.0-flash-exp"
 
-tools = [
-    {"google_search": {}},
-    {"code_execution": {}},
-    {"function_declarations": [send_email_schema, create_google_calendar_event_schema]},
+google_search_dict: ToolDict = {"google_search": {}}
+
+tools: ToolListUnionDict = [
+    google_search_dict,
+    # {"code_execution": {}},
+    # {"function_declarations": [send_email_schema, create_google_calendar_event_schema]},
 ]
 
+response_modalities: list[Modality] = [Modality.TEXT]
+
+parts: list[PartDict] = [{"text": system_prompt}]
+
+system_instruction: ContentDict = {
+    "role": "model",
+    "parts": parts,
+}
+
 # 設定を直接定義
-config = {
-    "response_modalities": ["TEXT"],
+config: LiveConnectConfigDict = {
+    "response_modalities": response_modalities,
     "tools": tools,
-    "system_instruction": system_prompt,
+    "system_instruction": system_instruction,
 }
 
 
